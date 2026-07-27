@@ -207,6 +207,7 @@ els.fullscreenBtn.addEventListener("click", toggleFullscreen);
 els.entryFullscreenBtn.addEventListener("click", enterPreferredDisplay);
 els.entryWindowBtn.addEventListener("click", enterWindowedDisplay);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
+document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
 els.closeTimeBtn.addEventListener("click", () => showScreen(els.menu));
 els.timeOptions.forEach((button) => button.addEventListener("click", () => {
@@ -263,33 +264,49 @@ function showEntryDisplayHelp() {
 async function enterPreferredDisplay() {
   unlockGameAudio();
   playButton();
+  setPseudoFullscreen(true);
+  closeEntryGate();
   const isStandalone = Boolean(navigator.standalone || window.matchMedia("(display-mode: standalone)").matches || window.matchMedia("(display-mode: fullscreen)").matches);
   if (isStandalone) {
-    closeEntryGate();
     return;
   }
   const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
   if (!requestFullscreen || isIPhone) {
-    showEntryDisplayHelp();
+    window.scrollTo(0, 1);
     return;
   }
   try {
-    await requestFullscreen.call(els.stage);
+    await requestNativeFullscreen(requestFullscreen);
     try {
       await screen.orientation?.lock?.("landscape");
     } catch {}
-    closeEntryGate();
   } catch {
-    showEntryDisplayHelp();
+    // CSS fullscreen remains active when the browser blocks the native API.
+  }
+  updateFullscreenButton();
+}
+
+async function requestNativeFullscreen(requestFullscreen) {
+  try {
+    await requestFullscreen.call(els.stage, { navigationUI: "hide" });
+  } catch (error) {
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    await requestFullscreen.call(els.stage);
   }
 }
 
 function enterWindowedDisplay() {
   unlockGameAudio();
   playButton();
-  state.pseudoFullscreen = false;
-  els.stage.classList.remove("is-mobile-expanded");
+  setPseudoFullscreen(false);
   closeEntryGate();
+}
+
+function setPseudoFullscreen(enabled) {
+  state.pseudoFullscreen = enabled;
+  document.body.classList.toggle("is-game-expanded", enabled);
+  els.stage.classList.toggle("is-mobile-expanded", enabled);
+  handleViewportChange();
 }
 
 function resizeCanvas() {
@@ -437,44 +454,35 @@ function updateSoundButton() {
 
 async function toggleFullscreen() {
   try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else if (state.pseudoFullscreen) {
-      state.pseudoFullscreen = false;
-      els.stage.classList.remove("is-mobile-expanded");
-    } else {
-      const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
-      if (isIPhone && !navigator.standalone) {
-        els.entryGate.hidden = false;
-        showEntryDisplayHelp();
-        return;
-      } else if (requestFullscreen) {
-        await requestFullscreen.call(els.stage);
-      } else {
-        state.pseudoFullscreen = true;
-        els.stage.classList.add("is-mobile-expanded");
-        window.scrollTo(0, 1);
-        if (isIOS && !navigator.standalone) {
-          showFeedback("iPhone: กดแชร์ แล้วเลือก เพิ่มไปยังหน้าจอโฮม เพื่อเปิดเต็มจอ", "#ffffff", 6000);
-        }
+    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fullscreenElement || state.pseudoFullscreen) {
+      setPseudoFullscreen(false);
+      if (fullscreenElement) {
+        const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+        await exitFullscreen?.call(document);
       }
+    } else {
+      setPseudoFullscreen(true);
+      const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
+      if (requestFullscreen && !isIPhone) {
+        try {
+          await requestNativeFullscreen(requestFullscreen);
+        } catch {}
+      }
+      window.scrollTo(0, 1);
       if (screen.orientation?.lock) {
         screen.orientation.lock("landscape").catch(() => {});
       }
     }
   } catch {
-    state.pseudoFullscreen = true;
-    els.stage.classList.add("is-mobile-expanded");
+    setPseudoFullscreen(true);
     window.scrollTo(0, 1);
-    if (isIOS && !navigator.standalone) {
-      showFeedback("iPhone: กดแชร์ แล้วเลือก เพิ่มไปยังหน้าจอโฮม เพื่อเปิดเต็มจอ", "#ffffff", 6000);
-    }
   }
   updateFullscreenButton();
 }
 
 function updateFullscreenButton() {
-  const isFullscreen = Boolean(document.fullscreenElement || state.pseudoFullscreen);
+  const isFullscreen = Boolean(document.fullscreenElement || document.webkitFullscreenElement || state.pseudoFullscreen);
   const label = isFullscreen ? "ออกจากเต็มหน้าจอ" : "เต็มหน้าจอ";
   els.fullscreenBtn.textContent = isFullscreen ? "×" : "⛶";
   els.fullscreenBtn.setAttribute("aria-label", label);

@@ -121,10 +121,40 @@ button {
 .stage.is-mobile-expanded {
   position: fixed;
   inset: 0;
-  margin: auto;
+  margin: 0;
   z-index: 1000;
-  width: var(--stage-width);
-  height: var(--stage-height);
+  width: 100vw;
+  width: var(--app-width);
+  height: 100vh;
+  height: var(--app-height);
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  box-shadow: none;
+}
+
+body.is-game-expanded .game-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  width: 100vw;
+  width: var(--app-width);
+  height: 100vh;
+  height: var(--app-height);
+  place-items: stretch;
+  overscroll-behavior: none;
+}
+
+.stage:fullscreen,
+.stage:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  background: #000000;
+  box-shadow: none;
 }
 
 /* Strong feedback is reserved for an incorrect answer. */
@@ -205,9 +235,9 @@ button {
 .hud {
   position: absolute;
   z-index: 8;
-  top: 14px;
-  left: 14px;
-  right: 14px;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
   display: grid;
   grid-template-columns: repeat(4, minmax(104px, 150px));
   justify-content: space-between;
@@ -224,7 +254,7 @@ button {
   position: absolute;
   z-index: 10;
   top: 122px;
-  right: 20px;
+  right: max(20px, env(safe-area-inset-right));
   width: 48px;
   aspect-ratio: 1;
   border: 3px solid #fff7ce;
@@ -463,8 +493,8 @@ button {
 .menu-fullscreen-button {
   position: absolute;
   z-index: 3;
-  top: 2.5%;
-  right: 2.2%;
+  top: max(2.5%, env(safe-area-inset-top));
+  right: max(2.2%, env(safe-area-inset-right));
   display: grid;
   width: clamp(46px, 5vw, 64px);
   aspect-ratio: 1;
@@ -481,7 +511,7 @@ button {
 
 .menu-fullscreen-button {
   right: auto;
-  left: 2.2%;
+  left: max(2.2%, env(safe-area-inset-left));
   background: #7abf39;
   box-shadow: 0 5px 0 #3f781b, 0 12px 22px rgba(38, 45, 31, 0.26);
 }
@@ -515,9 +545,9 @@ button {
 .menu-button-tray {
   position: absolute;
   z-index: 2;
-  right: 7%;
-  bottom: 3.1%;
-  left: 9%;
+  right: max(7%, env(safe-area-inset-right));
+  bottom: max(3.1%, env(safe-area-inset-bottom));
+  left: max(9%, env(safe-area-inset-left));
   display: grid;
   grid-template-columns: 1.02fr 1.42fr 0.98fr 0.86fr;
   align-items: end;
@@ -1095,6 +1125,19 @@ button {
     flex: 1;
     padding: 0 10px;
   }
+}
+
+/* Keep the expanded stage authoritative over responsive 16:9 sizing rules. */
+body.is-game-expanded .stage.is-mobile-expanded,
+.stage:fullscreen,
+.stage:-webkit-full-screen {
+  width: 100vw;
+  width: var(--app-width);
+  height: 100vh;
+  height: var(--app-height);
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
