@@ -65,7 +65,9 @@ const ctx = els.canvas.getContext("2d");
 const menuDanceCtx = els.menuDanceCanvas.getContext("2d");
 const isDesktopChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent) && window.matchMedia("(pointer: fine)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
-const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isIPad = /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isIPhone = /iPhone|iPod/i.test(navigator.userAgent);
+const isIOS = isIPad || isIPhone;
 document.body.classList.toggle("is-ios-device", isIOS);
 const menuImage = new Image();
 const cloudSheet = new Image();
@@ -251,8 +253,10 @@ function closeEntryGate() {
 
 function showEntryDisplayHelp() {
   els.entryMessage.hidden = false;
-  els.entryMessage.textContent = isIOS
+  els.entryMessage.textContent = isIPhone
     ? "iPhone: กดแชร์ เปิดใน Safari แล้วเลือก เพิ่มไปยังหน้าจอโฮม หรือเลือกเล่นในหน้านี้"
+    : isIPad
+      ? "iPad: เปิดใน Safari แล้วเลือก เพิ่มไปยังหน้าจอโฮม หรือเลือกเล่นในหน้านี้แบบ 16:9"
     : "เบราว์เซอร์นี้ไม่อนุญาตเต็มจอ เลือกเล่นในหน้านี้ได้ทันที";
 }
 
@@ -265,7 +269,7 @@ async function enterPreferredDisplay() {
     return;
   }
   const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
-  if (!requestFullscreen || isIOS) {
+  if (!requestFullscreen || isIPhone) {
     showEntryDisplayHelp();
     return;
   }
@@ -440,7 +444,7 @@ async function toggleFullscreen() {
       els.stage.classList.remove("is-mobile-expanded");
     } else {
       const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
-      if (isIOS && !navigator.standalone) {
+      if (isIPhone && !navigator.standalone) {
         els.entryGate.hidden = false;
         showEntryDisplayHelp();
         return;
