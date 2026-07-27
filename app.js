@@ -123,6 +123,8 @@ const wordAudio = new Map(correctWords.map((item, index) => {
   audio.preload = "auto";
   return [item.word, audio];
 }));
+const wordSpriteCache = new Map();
+document.fonts?.ready.then(() => wordSpriteCache.clear());
 
 const wrongWords = [
   ["กบ", 4, 4], ["นก", 5, 4], ["มด", 0, 5], ["รถ", 1, 5], ["ดิน", 2, 5], ["บ้าน", 3, 5],
@@ -1122,6 +1124,7 @@ function drawCreature(creature) {
   const puff = Math.sin(creature.life * 12 + creature.phase) * 0.022;
   const cloudScaleX = 1 + movement * 0.045 + puff;
   const cloudScaleY = 1 + puff * 0.72;
+  let wordCenterX = 0;
   let wordCenterY = size * 0.34;
 
   ctx.save();
@@ -1151,6 +1154,8 @@ function drawCreature(creature) {
     const cloudHeight = cloudWidth * (cloud.naturalHeight / cloud.naturalWidth);
     const cloudY = -size * 0.08;
     ctx.drawImage(cloud, -cloudWidth / 2, cloudY, cloudWidth, cloudHeight);
+    // The visible cloud artwork sits slightly left inside its transparent PNG canvas.
+    wordCenterX = -cloudWidth * 0.025 * cloudScaleX;
     wordCenterY = (cloudY + cloudHeight * 0.51) * cloudScaleY;
     ctx.filter = "none";
     ctx.restore();
@@ -1163,18 +1168,78 @@ function drawCreature(creature) {
   ctx.textAlign = "center";
   const wordFontSize = Math.max(27, size * 0.28);
   ctx.font = `700 ${wordFontSize}px 'Mali', 'Leelawadee UI', sans-serif`;
-  drawVisuallyCenteredText(ctx, creature.word, 0, wordCenterY, size * 1.12, wordFontSize);
+  drawVisuallyCenteredText(ctx, creature.word, wordCenterX, wordCenterY, size * 1.12, wordFontSize);
   ctx.restore();
 }
 
 function drawVisuallyCenteredText(context, text, centerX, centerY, maxWidth, fontSize) {
-  context.textAlign = "center";
-  context.textBaseline = "alphabetic";
-  const metrics = context.measureText(text);
-  const ascent = metrics.actualBoundingBoxAscent || fontSize * 0.72;
-  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.18;
-  const baselineY = centerY + (ascent - descent) / 2;
-  context.fillText(text, centerX, baselineY, maxWidth);
+  const color = String(context.fillStyle);
+  const roundedFontSize = Math.round(fontSize * 2) / 2;
+  const cacheKey = `${text}|${roundedFontSize}|${color}`;
+  let sprite = wordSpriteCache.get(cacheKey);
+  if (!sprite) {
+    sprite = createTightlyCroppedWordSprite(text, roundedFontSize, color);
+    wordSpriteCache.set(cacheKey, sprite);
+  }
+  const drawWidth = Math.min(sprite.width, maxWidth);
+  context.drawImage(
+    sprite.canvas,
+    centerX - drawWidth / 2,
+    centerY - sprite.height / 2,
+    drawWidth,
+    sprite.height
+  );
+}
+
+function createTightlyCroppedWordSprite(text, fontSize, color) {
+  const renderScale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
+  const font = `700 ${fontSize}px 'Mali', 'Leelawadee UI', sans-serif`;
+  const measureCanvas = document.createElement("canvas");
+  const measureContext = measureCanvas.getContext("2d");
+  measureContext.font = font;
+  const measuredWidth = Math.max(fontSize, measureContext.measureText(text).width);
+  const padding = fontSize * 1.2;
+  const source = document.createElement("canvas");
+  source.width = Math.ceil((measuredWidth + padding * 2) * renderScale);
+  source.height = Math.ceil(fontSize * 2.6 * renderScale);
+  const sourceContext = source.getContext("2d", { willReadFrequently: true });
+  sourceContext.scale(renderScale, renderScale);
+  sourceContext.font = font;
+  sourceContext.fillStyle = color;
+  sourceContext.textAlign = "left";
+  sourceContext.textBaseline = "alphabetic";
+  sourceContext.direction = "ltr";
+  sourceContext.fillText(text, padding, fontSize * 1.7);
+
+  const pixels = sourceContext.getImageData(0, 0, source.width, source.height);
+  let minX = source.width;
+  let minY = source.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < source.height; y += 1) {
+    for (let x = 0; x < source.width; x += 1) {
+      if (pixels.data[(y * source.width + x) * 4 + 3] < 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return { canvas: source, width: measuredWidth, height: fontSize };
+  }
+  const cropWidth = maxX - minX + 1;
+  const cropHeight = maxY - minY + 1;
+  const cropped = document.createElement("canvas");
+  cropped.width = cropWidth;
+  cropped.height = cropHeight;
+  cropped.getContext("2d").drawImage(source, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+  return {
+    canvas: cropped,
+    width: cropWidth / renderScale,
+    height: cropHeight / renderScale
+  };
 }
 
 function drawContainedCharacter(image, size, bobOffset) {
