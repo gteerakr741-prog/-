@@ -136,6 +136,7 @@ const state = {
   mode: "menu",
   running: false,
   paused: false,
+  resuming: false,
   roundDuration: 60,
   score: 0,
   level: 1,
@@ -163,6 +164,7 @@ const state = {
   pinchDistance: Infinity,
   sound: true,
   cameraReady: false,
+  cameraRequestId: 0,
   handReady: false,
   handLandmarker: null,
   lastVideoTime: -1,
@@ -184,6 +186,10 @@ resizeCanvas();
 window.addEventListener("resize", handleViewportChange);
 window.addEventListener("orientationchange", handleViewportChange);
 window.visualViewport?.addEventListener("resize", handleViewportChange);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) suspendForBackground();
+});
+window.addEventListener("pagehide", suspendForBackground);
 window.addEventListener("pointermove", updatePointer);
 window.addEventListener("pointerdown", requestPointerCatch);
 window.addEventListener("touchstart", updateTouch, { passive: true });
@@ -351,6 +357,8 @@ async function startGame() {
   state.mode = "playing";
   state.running = true;
   state.paused = false;
+  state.resuming = false;
+  els.resumeBtn.disabled = false;
   els.pauseBtn.hidden = false;
   els.cameraTestControls.hidden = true;
   els.pauseOverlay.hidden = true;
@@ -390,6 +398,8 @@ async function startGame() {
 function showMenu() {
   state.running = false;
   state.paused = false;
+  state.resuming = false;
+  els.resumeBtn.disabled = false;
   els.pauseBtn.hidden = true;
   els.cameraTestControls.hidden = true;
   els.pauseOverlay.hidden = true;
@@ -398,6 +408,7 @@ function showMenu() {
   els.hud.hidden = true;
   state.creatures = [];
   state.particles = [];
+  stopCameraStream();
   showScreen(els.menu);
   startMenuMusic();
 }
@@ -506,12 +517,43 @@ function pauseGame() {
   els.pauseOverlay.hidden = false;
 }
 
-function resumeGame() {
-  if (!state.paused) return;
+async function resumeGame() {
+  if (!state.paused || state.resuming) return;
+  state.resuming = true;
+  els.resumeBtn.disabled = true;
+  if (!state.cameraReady) await ensureCamera();
+  if (document.hidden) {
+    state.resuming = false;
+    els.resumeBtn.disabled = false;
+    return;
+  }
   state.paused = false;
   state.lastTick = performance.now();
   els.pauseOverlay.hidden = true;
   startBackgroundMusic();
+  state.resuming = false;
+  els.resumeBtn.disabled = false;
+}
+
+function stopCameraStream() {
+  state.cameraRequestId += 1;
+  const stream = els.camera.srcObject;
+  if (stream?.getTracks) stream.getTracks().forEach((track) => track.stop());
+  els.camera.pause();
+  els.camera.srcObject = null;
+  els.camera.classList.remove("is-live");
+  state.cameraReady = false;
+  state.lastVideoTime = -1;
+  state.pinchDown = false;
+  state.pointer.active = false;
+  state.thumb.active = false;
+}
+
+function suspendForBackground() {
+  if (state.running && !state.paused) pauseGame();
+  els.menuMusic.pause();
+  els.bgMusic.pause();
+  stopCameraStream();
 }
 
 function startBackgroundMusic() {
@@ -610,6 +652,7 @@ function unlockGameAudio() {
 
 async function ensureCamera() {
   if (state.cameraReady) return true;
+  const requestId = ++state.cameraRequestId;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -620,6 +663,10 @@ async function ensureCamera() {
       },
       audio: false
     });
+    if (requestId !== state.cameraRequestId || document.hidden) {
+      stream.getTracks().forEach((track) => track.stop());
+      return false;
+    }
     els.camera.srcObject = stream;
     await els.camera.play();
     els.camera.classList.add("is-live");
@@ -627,7 +674,7 @@ async function ensureCamera() {
     loadHandTracking();
     return true;
   } catch {
-    state.cameraReady = false;
+    if (requestId === state.cameraRequestId) state.cameraReady = false;
     showFeedback("เปิดกล้องไม่ได้ ใช้เมาส์หรือแตะหน้าจอแทน", "#ffffff");
     return false;
   }
@@ -1351,6 +1398,8 @@ function advanceLevel() {
 function endGame(completed = false) {
   state.running = false;
   state.paused = false;
+  state.resuming = false;
+  els.resumeBtn.disabled = false;
   els.pauseBtn.hidden = true;
   els.cameraTestControls.hidden = true;
   els.pauseOverlay.hidden = true;
