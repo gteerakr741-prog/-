@@ -60,6 +60,8 @@ const els = {
 const ctx = els.canvas.getContext("2d");
 const menuDanceCtx = els.menuDanceCanvas.getContext("2d");
 const isDesktopChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent) && window.matchMedia("(pointer: fine)").matches;
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const menuImage = new Image();
 const cloudSheet = new Image();
 let cloudCanvas = null;
@@ -153,7 +155,10 @@ const state = {
   handLandmarker: null,
   lastVideoTime: -1,
   lastHandDetectionAt: 0,
-  handDetectionInterval: 50,
+  handDetectionInterval: isAndroid ? 66 : 50,
+  handTrackingDelegate: null,
+  handTrackingLoading: false,
+  handTrackingRecoveries: 0,
   lastRenderAt: 0,
   renderInterval: isDesktopChrome ? 1000 / 30 : 0,
   pseudoFullscreen: false,
@@ -358,6 +363,9 @@ async function toggleFullscreen() {
         state.pseudoFullscreen = true;
         els.stage.classList.add("is-mobile-expanded");
         window.scrollTo(0, 1);
+        if (isIOS && !navigator.standalone) {
+          showFeedback("iPhone: กดแชร์ แล้วเลือก เพิ่มไปยังหน้าจอโฮม เพื่อเปิดเต็มจอ", "#ffffff", 6000);
+        }
       }
       if (screen.orientation?.lock) {
         screen.orientation.lock("landscape").catch(() => {});
@@ -367,6 +375,9 @@ async function toggleFullscreen() {
     state.pseudoFullscreen = true;
     els.stage.classList.add("is-mobile-expanded");
     window.scrollTo(0, 1);
+    if (isIOS && !navigator.standalone) {
+      showFeedback("iPhone: กดแชร์ แล้วเลือก เพิ่มไปยังหน้าจอโฮม เพื่อเปิดเต็มจอ", "#ffffff", 6000);
+    }
   }
   updateFullscreenButton();
 }
@@ -467,30 +478,65 @@ async function ensureCamera() {
   }
 }
 
-async function loadHandTracking() {
-  if (state.handLandmarker || state.handReady) return;
+async function loadHandTracking(forcedDelegate = null) {
+  if (state.handTrackingLoading || state.handReady) return;
+  state.handTrackingLoading = true;
   try {
     const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18");
     const resolver = await vision.FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
     );
-    state.handLandmarker = await vision.HandLandmarker.createFromOptions(resolver, {
-      baseOptions: {
-        modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        delegate: "GPU"
-      },
-      runningMode: "VIDEO",
-      numHands: 1,
-      minHandDetectionConfidence: 0.55,
-      minTrackingConfidence: 0.5
-    });
-    state.handReady = true;
-    showFeedback("ตรวจจับนิ้วพร้อมแล้ว", "#ffffff");
+    const delegates = forcedDelegate ? [forcedDelegate] : isAndroid ? ["CPU", "GPU"] : ["GPU", "CPU"];
+    let lastError = null;
+    for (const delegate of delegates) {
+      try {
+        state.handLandmarker = await vision.HandLandmarker.createFromOptions(resolver, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: isAndroid ? 0.4 : 0.5,
+          minHandPresenceConfidence: isAndroid ? 0.4 : 0.5,
+          minTrackingConfidence: isAndroid ? 0.4 : 0.5
+        });
+        state.handTrackingDelegate = delegate;
+        state.handReady = true;
+        state.lastVideoTime = -1;
+        showFeedback("ตรวจจับนิ้วพร้อมแล้ว", "#ffffff");
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!state.handReady) throw lastError || new Error("Hand tracking unavailable");
   } catch {
     state.handReady = false;
     showFeedback("ตรวจนิ้วไม่พร้อม ใช้เมาส์/ทัชแทนได้", "#ffffff");
+  } finally {
+    state.handTrackingLoading = false;
   }
+}
+
+function recoverHandTracking() {
+  if (state.handTrackingRecoveries >= 2) {
+    state.handReady = false;
+    showFeedback("ตรวจนิ้วไม่พร้อม ใช้การแตะหน้าจอแทนได้", "#ffffff", 3000);
+    return;
+  }
+  state.handTrackingRecoveries += 1;
+  const failedDelegate = state.handTrackingDelegate;
+  state.handReady = false;
+  state.pinchDown = false;
+  state.thumb.active = false;
+  try {
+    state.handLandmarker?.close?.();
+  } catch {}
+  state.handLandmarker = null;
+  state.handTrackingDelegate = null;
+  loadHandTracking(failedDelegate === "GPU" ? "CPU" : "GPU");
 }
 
 function loop(now) {
@@ -519,10 +565,8 @@ function loop(now) {
     try {
       updateHandPointer(now, rect);
     } catch {
-      state.handReady = false;
-      state.pinchDown = false;
-      state.thumb.active = false;
-      showFeedback("ตรวจจับนิ้วขัดข้อง ใช้เมาส์/แตะหน้าจอเล่นต่อได้", "#ffffff");
+      showFeedback("กำลังสลับระบบตรวจจับนิ้ว...", "#ffffff", 2200);
+      recoverHandTracking();
     }
   }
 
@@ -1189,14 +1233,14 @@ function hideScreens() {
   [els.menu, els.info, els.time, els.result].forEach((screen) => screen.classList.remove("is-active"));
 }
 
-function showFeedback(text, color = "#ffffff") {
+function showFeedback(text, color = "#ffffff", duration = 1200) {
   els.feedback.textContent = text;
   els.feedback.style.color = color;
   if (!text) return;
   window.clearTimeout(showFeedback.timeout);
   showFeedback.timeout = window.setTimeout(() => {
     els.feedback.textContent = "";
-  }, 1200);
+  }, duration);
 }
 
 function showCombo(text) {
