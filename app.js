@@ -62,6 +62,7 @@ const menuDanceCtx = els.menuDanceCanvas.getContext("2d");
 const isDesktopChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent) && window.matchMedia("(pointer: fine)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
 const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+document.body.classList.toggle("is-ios-device", isIOS);
 const menuImage = new Image();
 const cloudSheet = new Image();
 let cloudCanvas = null;
@@ -367,7 +368,12 @@ async function toggleFullscreen() {
       els.stage.classList.remove("is-mobile-expanded");
     } else {
       const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
-      if (requestFullscreen) {
+      if (isIOS && !navigator.standalone) {
+        state.pseudoFullscreen = true;
+        els.stage.classList.add("is-mobile-expanded");
+        window.scrollTo(0, 1);
+        showFeedback("หมุน iPhone เป็นแนวนอน หรือเพิ่มเกมไปยังหน้าจอโฮมเพื่อซ่อนแถบ Safari", "#ffffff", 6000);
+      } else if (requestFullscreen) {
         await requestFullscreen.call(els.stage);
       } else {
         state.pseudoFullscreen = true;

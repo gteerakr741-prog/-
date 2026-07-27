@@ -54,6 +54,16 @@ button {
   height: min(100dvh, 56.25vw);
 }
 
+@media (orientation: landscape) {
+  body.is-ios-device .stage.is-mobile-expanded {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
+  }
+}
+
 /* Strong feedback is reserved for an incorrect answer. */
 .stage.is-shaking {
   animation: wrongShake 360ms cubic-bezier(.36, .07, .19, .97) both;
