@@ -111,6 +111,11 @@ const correctWords = [
   ["ใบ", 0, 3], ["ไฟ", 1, 3], ["ขา", 2, 3], ["ปู", 3, 3], ["งู", 4, 3], ["วัว", 5, 3],
   ["หัว", 0, 4], ["ยา", 1, 4], ["รู", 2, 4], ["หู", 3, 4]
 ].map(([word, col, row]) => ({ word, col, row, correct: true }));
+const wordAudio = new Map(correctWords.map((item, index) => {
+  const audio = new Audio(`assets/words/word-${String(index + 1).padStart(2, "0")}.mp3`);
+  audio.preload = "auto";
+  return [item.word, audio];
+}));
 
 const wrongWords = [
   ["กบ", 4, 4], ["นก", 5, 4], ["มด", 0, 5], ["รถ", 1, 5], ["ดิน", 2, 5], ["บ้าน", 3, 5],
@@ -162,7 +167,9 @@ const state = {
   lastRenderAt: 0,
   renderInterval: isDesktopChrome ? 1000 / 30 : 0,
   pseudoFullscreen: false,
-  audio: null
+  audio: null,
+  audioBuffers: new Map(),
+  audioBufferLoads: new Map()
 };
 
 resizeCanvas();
@@ -175,6 +182,9 @@ window.addEventListener("pointerdown", unlockMenuMusic, true);
 window.addEventListener("touchstart", unlockMenuMusic, { capture: true, passive: true });
 window.addEventListener("click", unlockMenuMusic, true);
 window.addEventListener("keydown", unlockMenuMusic, true);
+window.addEventListener("pointerdown", unlockGameAudio, true);
+window.addEventListener("touchstart", unlockGameAudio, { capture: true, passive: true });
+window.addEventListener("keydown", unlockGameAudio, true);
 
 els.startBtn.addEventListener("click", startGame);
 els.replayBtn.addEventListener("click", startGame);
@@ -447,10 +457,65 @@ function stopMenuMusic() {
 
 function playAsset(audio, volume = 0.45) {
   if (!state.sound) return;
+  const context = audioContext();
+  const url = audioAssetUrl(audio);
+  const buffer = url ? state.audioBuffers.get(url) : null;
+  if (context && context.state === "running" && buffer) {
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain).connect(context.destination);
+    source.start();
+    return;
+  }
+  if (url) void preloadAudioAsset(audio);
   audio.pause();
   audio.currentTime = 0;
   audio.volume = volume;
   audio.play().catch(() => {});
+}
+
+function audioAssetUrl(audio) {
+  return audio.currentSrc || audio.src || audio.querySelector?.("source")?.src || "";
+}
+
+function effectAudioAssets() {
+  return [
+    els.startSound,
+    els.finalCountdownSound,
+    els.bonusSound,
+    els.bigBonusSound,
+    els.wrongAnswerSound,
+    els.loseSound,
+    els.endSound,
+    ...wordAudio.values()
+  ];
+}
+
+async function preloadAudioAsset(audio) {
+  const context = audioContext();
+  const url = audioAssetUrl(audio);
+  if (!context || !url || state.audioBuffers.has(url)) return;
+  if (state.audioBufferLoads.has(url)) return state.audioBufferLoads.get(url);
+  const loading = fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Audio ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then((bytes) => context.decodeAudioData(bytes))
+    .then((buffer) => state.audioBuffers.set(url, buffer))
+    .catch(() => {})
+    .finally(() => state.audioBufferLoads.delete(url));
+  state.audioBufferLoads.set(url, loading);
+  return loading;
+}
+
+function unlockGameAudio() {
+  if (!state.sound) return;
+  const context = audioContext();
+  context?.resume?.().catch(() => {});
+  effectAudioAssets().forEach((audio) => void preloadAudioAsset(audio));
 }
 
 async function ensureCamera() {
@@ -1270,7 +1335,9 @@ function flashTimeWarning() {
 
 function audioContext() {
   if (!state.sound) return null;
-  state.audio ||= new AudioContext();
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  state.audio ||= new AudioContextClass();
   return state.audio;
 }
 
@@ -1319,12 +1386,8 @@ function playButton() {
 }
 
 function speakWord(word) {
-  if (!state.sound || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = "th-TH";
-  utterance.rate = 0.82;
-  window.speechSynthesis.speak(utterance);
+  const audio = wordAudio.get(word);
+  if (audio) playAsset(audio, 0.72);
 }
 
 function roundRect(context, x, y, width, height, radius) {
