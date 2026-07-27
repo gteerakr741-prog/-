@@ -151,6 +151,8 @@ const state = {
   handReady: false,
   handLandmarker: null,
   lastVideoTime: -1,
+  lastHandDetectionAt: 0,
+  handDetectionInterval: 50,
   audio: null
 };
 
@@ -196,7 +198,10 @@ startMenuMusic();
 
 function resizeCanvas() {
   const rect = els.stage.getBoundingClientRect();
-  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  const nativeDpr = window.devicePixelRatio || 1;
+  const pixelBudget = 1920 * 1080;
+  const budgetDpr = Math.sqrt(pixelBudget / Math.max(1, rect.width * rect.height));
+  const dpr = Math.max(1, Math.min(nativeDpr, 1.25, budgetDpr));
   els.canvas.width = Math.round(rect.width * dpr);
   els.canvas.height = Math.round(rect.height * dpr);
   els.canvas.style.width = `${rect.width}px`;
@@ -418,7 +423,12 @@ async function ensureCamera() {
   if (state.cameraReady) return true;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: {
+        facingMode: "user",
+        width: { ideal: 640, max: 640 },
+        height: { ideal: 360, max: 360 },
+        frameRate: { ideal: 24, max: 30 }
+      },
       audio: false
     });
     els.camera.srcObject = stream;
@@ -448,7 +458,9 @@ async function loadHandTracking() {
         delegate: "GPU"
       },
       runningMode: "VIDEO",
-      numHands: 2
+      numHands: 1,
+      minHandDetectionConfidence: 0.55,
+      minTrackingConfidence: 0.5
     });
     state.handReady = true;
     showFeedback("ตรวจจับนิ้วพร้อมแล้ว", "#ffffff");
@@ -474,7 +486,8 @@ function loop(now) {
   } else menuDanceCtx.clearRect(0, 0, rect.width, rect.height);
   drawAmbient(rect, now);
 
-  if (state.cameraReady && state.handReady && state.handLandmarker) {
+  const needsHandTracking = state.mode === "playing" || state.mode === "camera" || state.mode === "result";
+  if (needsHandTracking && state.cameraReady && state.handReady && state.handLandmarker) {
     try {
       updateHandPointer(now, rect);
     } catch {
@@ -629,6 +642,8 @@ function drawCameraGuide(rect) {
 
 function updateHandPointer(now, rect) {
   if (els.camera.readyState < 2 || els.camera.currentTime === state.lastVideoTime) return;
+  if (now - state.lastHandDetectionAt < state.handDetectionInterval) return;
+  state.lastHandDetectionAt = now;
   state.lastVideoTime = els.camera.currentTime;
   const result = state.handLandmarker.detectForVideo(els.camera, now);
   const nearestHand = getClosestHand(result.landmarks);
@@ -966,6 +981,7 @@ function burst(x, y, colorA, colorB, shape = "circle") {
 }
 
 function megaBurst(x, y, particleCount = 72) {
+  particleCount = Math.min(particleCount, 48);
   const colors = ["#ffe55f", "#ff6f91", "#70e0ff", "#9cf06c", "#c787ff", "#ffffff"];
   for (let index = 0; index < particleCount; index += 1) {
     const angle = Math.random() * Math.PI * 2;
@@ -992,7 +1008,7 @@ function screenFireworks() {
     [0.32, 0.58],
     [0.7, 0.62]
   ];
-  bursts.forEach(([x, y]) => megaBurst(rect.width * x, rect.height * y));
+  bursts.forEach(([x, y]) => megaBurst(rect.width * x, rect.height * y, 30));
 }
 
 
@@ -1004,6 +1020,9 @@ function updateParticles(delta) {
     particle.vy += (particle.gravity ?? 120) * delta;
     return particle.life > 0;
   });
+  if (state.particles.length > 240) {
+    state.particles.splice(0, state.particles.length - 240);
+  }
 }
 
 function drawCloudTrails() {
