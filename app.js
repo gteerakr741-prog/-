@@ -215,7 +215,7 @@ els.timeOptions.forEach((button) => button.addEventListener("click", () => {
   updateTimeOptions();
   showScreen(els.menu);
 }));
-els.pauseBtn.addEventListener("pointerdown", togglePauseFromMouse);
+els.pauseBtn.addEventListener("pointerdown", togglePauseFromInput);
 els.pauseBtn.addEventListener("click", (event) => event.preventDefault());
 els.cameraBackBtn.addEventListener("click", showMenu);
 els.cameraStartBtn.addEventListener("click", startGame);
@@ -490,9 +490,10 @@ function updateFullscreenButton() {
   window.requestAnimationFrame(resizeCanvas);
 }
 
-function togglePauseFromMouse(event) {
-  if (event.pointerType !== "mouse" || !state.running) return;
+function togglePauseFromInput(event) {
+  if (!event.isPrimary || event.button !== 0 || !state.running) return;
   event.preventDefault();
+  event.stopPropagation();
   if (state.paused) resumeGame();
   else pauseGame();
 }
@@ -957,7 +958,7 @@ function updateTouch(event) {
 }
 
 function requestCatch() {
-  if (state.running) state.catchRequested = true;
+  if (state.running && !state.paused) state.catchRequested = true;
   else if (state.mode === "result" && state.pointer.source === "finger") {
     [els.replayBtn, els.homeBtn].find((button) => button.classList.contains("is-pointed"))?.click();
   }

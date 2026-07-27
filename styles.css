@@ -261,6 +261,7 @@ body.is-game-expanded .game-shell {
   border-radius: 50%;
   background: #ff9d34;
   box-shadow: 0 4px 0 #a94c1b, 0 8px 18px rgba(57, 31, 9, 0.28);
+  touch-action: manipulation;
 }
 
 .pause-button span,
@@ -391,6 +392,7 @@ body.is-game-expanded .game-shell {
   background: #7bbd31;
   color: #ffffff;
   font-weight: 700;
+  touch-action: manipulation;
 }
 
 .pause-card .pause-menu {
