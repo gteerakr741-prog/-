@@ -1129,6 +1129,100 @@ body.is-game-expanded .game-shell {
   }
 }
 
+@media (max-height: 500px) and (orientation: landscape) {
+  .hud {
+    top: max(5px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    grid-template-columns: repeat(4, minmax(0, 108px));
+    gap: 6px;
+  }
+
+  .hud-pill {
+    min-height: 64px;
+    padding: 11px 5px 3px;
+    border-radius: 8px;
+  }
+
+  .hud-pill span {
+    font-size: 10px;
+  }
+
+  .hud-pill strong,
+  .hearts {
+    font-size: 19px;
+  }
+
+  .hud-pill small {
+    font-size: 9px;
+    line-height: 1.1;
+  }
+
+  .hud-pill small b {
+    font-size: 11px;
+  }
+
+  .score-pill,
+  .timer {
+    min-width: 0;
+  }
+
+  .combo-meter {
+    height: 4px;
+    margin: 2px 1px 1px;
+  }
+
+  .pause-button {
+    top: max(73px, calc(env(safe-area-inset-top) + 68px));
+    right: max(12px, env(safe-area-inset-right));
+    width: 38px;
+    border-width: 2px;
+  }
+
+  .pause-button span,
+  .pause-button span::after {
+    top: 9px;
+    width: 5px;
+    height: 15px;
+  }
+
+  .pause-button span {
+    left: 11px;
+  }
+
+  .pause-button span::after {
+    top: 0;
+    left: 9px;
+  }
+
+  .combo-pop {
+    top: 70px;
+    min-height: 36px;
+    max-width: 72%;
+    font-size: clamp(22px, 4.5vw, 38px);
+    line-height: 1.05;
+  }
+
+  .combo-pop.is-bonus {
+    font-size: clamp(28px, 5.5vw, 46px);
+  }
+
+  .feedback {
+    bottom: 54px;
+    max-width: 84%;
+    font-size: clamp(20px, 3.5vw, 32px);
+    line-height: 1.12;
+  }
+
+  .finger-cursor,
+  .thumb-cursor {
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;
+    border-width: 4px;
+  }
+}
+
 /* Keep the expanded stage authoritative over responsive 16:9 sizing rules. */
 body.is-game-expanded .stage.is-mobile-expanded,
 .stage:fullscreen,

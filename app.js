@@ -517,7 +517,7 @@ function resumeGame() {
 function startBackgroundMusic() {
   if (!state.sound) return;
   els.menuMusic.pause();
-  els.bgMusic.volume = 0.22;
+  els.bgMusic.volume = 0.14;
   els.bgMusic.play().catch(() => {
     // Browsers require a player gesture before background audio can begin.
   });
@@ -1162,12 +1162,12 @@ function handleCatch(creature) {
     state.caughtWords.add(creature.word);
     burst(creature.x, y, "#ffe55f", "#90f071", "star");
     showFeedback(creature.golden ? `เยี่ยม! ${creature.word} เมฆทอง +50 คะแนน` : `ถูกต้อง! ${creature.word} ไม่มีตัวสะกด`, "#ffffff");
-    if (creature.golden) playAsset(els.bigBonusSound, 0.68);
+    if (creature.golden) playAsset(els.bigBonusSound, 0.95);
     if (state.combo === 4) {
       showCombo(`โบนัสใหญ่! x${multiplier}`, true);
       megaBurst(creature.x, y);
       screenFireworks();
-      playAsset(els.bigBonusSound, 0.58);
+      playAsset(els.bigBonusSound, 0.9);
     } else if (state.combo > 4) {
       showCombo(`โบนัสกำลังทำงาน! x${multiplier}`);
       megaBurst(creature.x, y, 36);
@@ -1376,7 +1376,7 @@ function endGame(completed = false) {
   els.learnedWords.textContent = [...state.caughtWords].join("  ") || "ยังไม่มีคำที่เก็บได้";
   els.resultTitle.textContent = completed ? "พิชิตแม่ ก กา ครบ 4 ด่าน!" : "จบรอบแล้ว!";
   showScreen(els.result);
-  playAsset(els.endSound, 0.5);
+  playAsset(els.endSound, 0.78);
 }
 
 function showScreen(screen) {
@@ -1454,14 +1454,14 @@ function playFinalCountdownWarning() {
   const seconds = Math.ceil(state.timeLeft);
   if (seconds !== 5 || seconds === state.lastTimerWarning) return;
   state.lastTimerWarning = seconds;
-  playAsset(els.finalCountdownSound, 0.7);
+  playAsset(els.finalCountdownSound, 0.95);
   flashTimeWarning();
 }
 
 function playCorrect() {
-  playAsset(els.bonusSound, 0.42);
-  tone(880, 0, 0.12, "triangle", 0.06);
-  tone(1320, 0.08, 0.16, "sine", 0.045);
+  playAsset(els.bonusSound, 0.82);
+  tone(880, 0, 0.12, "triangle", 0.085);
+  tone(1320, 0.08, 0.16, "sine", 0.065);
 }
 
 
@@ -1472,12 +1472,12 @@ function playWrong() {
 }
 
 function playButton() {
-  tone(620, 0, 0.08, "triangle", 0.035);
+  tone(620, 0, 0.08, "triangle", 0.05);
 }
 
 function speakWord(word) {
   const audio = wordAudio.get(word);
-  if (audio) playAsset(audio, 0.72);
+  if (audio) playAsset(audio, 0.92);
 }
 
 function roundRect(context, x, y, width, height, radius) {
