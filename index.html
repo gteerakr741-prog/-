@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>อาณาจักรเห็ด แม่ ก กา Hunter</title>
-    <link rel="stylesheet" href="styles.css?v=ios4" />
+    <link rel="stylesheet" href="styles.css?v=display1" />
   </head>
   <body>
     <main class="game-shell">
@@ -72,6 +72,17 @@
         <div class="thumb-cursor" id="thumbCursor" hidden></div>
         <div class="red-flash" id="redFlash"></div>
 
+        <section class="entry-gate" id="entryGate" aria-label="เลือกโหมดหน้าจอ">
+          <div class="entry-panel">
+            <strong>เลือกโหมดหน้าจอ</strong>
+            <div class="entry-actions">
+              <button id="entryFullscreenBtn" class="entry-fullscreen" type="button">⛶ เต็มจอ</button>
+              <button id="entryWindowBtn" class="entry-window" type="button">▣ เล่นในหน้านี้</button>
+            </div>
+            <p id="entryMessage" hidden>iPhone: เปิดลิงก์ใน Safari แล้วเลือก แชร์ → เพิ่มไปยังหน้าจอโฮม</p>
+          </div>
+        </section>
+
         <section class="screen menu-screen is-active" id="menuScreen">
           <canvas id="menuDanceCanvas" aria-hidden="true"></canvas>
           <button id="fullscreenBtn" class="menu-fullscreen-button" type="button" aria-label="เต็มหน้าจอ" title="เต็มหน้าจอ">⛶</button>
@@ -129,6 +140,6 @@
       </section>
     </main>
 
-    <script defer src="app.js?v=ios4"></script>
+    <script defer src="app.js?v=display1"></script>
   </body>
 </html>

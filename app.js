@@ -17,6 +17,10 @@ const els = {
   info: document.querySelector("#infoScreen"),
   time: document.querySelector("#timeScreen"),
   result: document.querySelector("#resultScreen"),
+  entryGate: document.querySelector("#entryGate"),
+  entryFullscreenBtn: document.querySelector("#entryFullscreenBtn"),
+  entryWindowBtn: document.querySelector("#entryWindowBtn"),
+  entryMessage: document.querySelector("#entryMessage"),
   startBtn: document.querySelector("#startBtn"),
   howBtn: document.querySelector("#howBtn"),
   cameraBtn: document.querySelector("#cameraBtn"),
@@ -173,8 +177,11 @@ const state = {
   audioBufferLoads: new Map()
 };
 
+syncViewportSize();
 resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", handleViewportChange);
+window.addEventListener("orientationchange", handleViewportChange);
+window.visualViewport?.addEventListener("resize", handleViewportChange);
 window.addEventListener("pointermove", updatePointer);
 window.addEventListener("pointerdown", requestPointerCatch);
 window.addEventListener("touchstart", updateTouch, { passive: true });
@@ -195,6 +202,8 @@ els.closeInfoBtn.addEventListener("click", () => showScreen(els.menu));
 els.cameraBtn.addEventListener("click", testCamera);
 els.soundBtn?.addEventListener("click", toggleSound);
 els.fullscreenBtn.addEventListener("click", toggleFullscreen);
+els.entryFullscreenBtn.addEventListener("click", enterPreferredDisplay);
+els.entryWindowBtn.addEventListener("click", enterWindowedDisplay);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
 els.closeTimeBtn.addEventListener("click", () => showScreen(els.menu));
@@ -215,6 +224,69 @@ els.menuMusic.load();
 updateSoundButton();
 updateFullscreenButton();
 startMenuMusic();
+
+function syncViewportSize() {
+  const viewport = window.visualViewport;
+  const width = Math.max(1, Math.round(viewport?.width || window.innerWidth));
+  const height = Math.max(1, Math.round(viewport?.height || window.innerHeight));
+  const stageWidth = Math.min(width, height * (16 / 9));
+  const stageHeight = Math.min(height, width * (9 / 16));
+  document.documentElement.style.setProperty("--app-width", `${width}px`);
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+  document.documentElement.style.setProperty("--stage-width", `${stageWidth}px`);
+  document.documentElement.style.setProperty("--stage-height", `${stageHeight}px`);
+  document.body.classList.toggle("is-landscape", width >= height);
+}
+
+function handleViewportChange() {
+  syncViewportSize();
+  window.requestAnimationFrame(resizeCanvas);
+}
+
+function closeEntryGate() {
+  els.entryGate.hidden = true;
+  handleViewportChange();
+  startMenuMusic();
+}
+
+function showEntryDisplayHelp() {
+  els.entryMessage.hidden = false;
+  els.entryMessage.textContent = isIOS
+    ? "iPhone: กดแชร์ เปิดใน Safari แล้วเลือก เพิ่มไปยังหน้าจอโฮม หรือเลือกเล่นในหน้านี้"
+    : "เบราว์เซอร์นี้ไม่อนุญาตเต็มจอ เลือกเล่นในหน้านี้ได้ทันที";
+}
+
+async function enterPreferredDisplay() {
+  unlockGameAudio();
+  playButton();
+  const isStandalone = Boolean(navigator.standalone || window.matchMedia("(display-mode: standalone)").matches || window.matchMedia("(display-mode: fullscreen)").matches);
+  if (isStandalone) {
+    closeEntryGate();
+    return;
+  }
+  const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
+  if (!requestFullscreen || isIOS) {
+    showEntryDisplayHelp();
+    return;
+  }
+  try {
+    await requestFullscreen.call(els.stage);
+    try {
+      await screen.orientation?.lock?.("landscape");
+    } catch {}
+    closeEntryGate();
+  } catch {
+    showEntryDisplayHelp();
+  }
+}
+
+function enterWindowedDisplay() {
+  unlockGameAudio();
+  playButton();
+  state.pseudoFullscreen = false;
+  els.stage.classList.remove("is-mobile-expanded");
+  closeEntryGate();
+}
 
 function resizeCanvas() {
   const rect = els.stage.getBoundingClientRect();
@@ -369,7 +441,8 @@ async function toggleFullscreen() {
     } else {
       const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
       if (isIOS && !navigator.standalone) {
-        window.alert("iPhone ต้องเปิดเกมใน Safari ก่อน แล้วกด แชร์ > เพิ่มไปยังหน้าจอโฮม จึงจะเล่นแบบเต็มจอได้");
+        els.entryGate.hidden = false;
+        showEntryDisplayHelp();
         return;
       } else if (requestFullscreen) {
         await requestFullscreen.call(els.stage);
