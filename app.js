@@ -1122,6 +1122,7 @@ function drawCreature(creature) {
   const puff = Math.sin(creature.life * 12 + creature.phase) * 0.022;
   const cloudScaleX = 1 + movement * 0.045 + puff;
   const cloudScaleY = 1 + puff * 0.72;
+  let wordCenterY = size * 0.34;
 
   ctx.save();
   ctx.translate(x, y);
@@ -1148,7 +1149,9 @@ function drawCreature(creature) {
     }
     const cloudWidth = size * 1.62;
     const cloudHeight = cloudWidth * (cloud.naturalHeight / cloud.naturalWidth);
-    ctx.drawImage(cloud, -cloudWidth / 2, -size * 0.08, cloudWidth, cloudHeight);
+    const cloudY = -size * 0.08;
+    ctx.drawImage(cloud, -cloudWidth / 2, cloudY, cloudWidth, cloudHeight);
+    wordCenterY = (cloudY + cloudHeight * 0.51) * cloudScaleY;
     ctx.filter = "none";
     ctx.restore();
   }
@@ -1158,10 +1161,20 @@ function drawCreature(creature) {
 
   ctx.fillStyle = creature.golden ? "#754000" : "#16120f";
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `700 ${Math.max(27, size * 0.28)}px 'Mali', 'Leelawadee UI', sans-serif`;
-  ctx.fillText(creature.word, 0, size * 0.34, size * 1.12);
+  const wordFontSize = Math.max(27, size * 0.28);
+  ctx.font = `700 ${wordFontSize}px 'Mali', 'Leelawadee UI', sans-serif`;
+  drawVisuallyCenteredText(ctx, creature.word, 0, wordCenterY, size * 1.12, wordFontSize);
   ctx.restore();
+}
+
+function drawVisuallyCenteredText(context, text, centerX, centerY, maxWidth, fontSize) {
+  context.textAlign = "center";
+  context.textBaseline = "alphabetic";
+  const metrics = context.measureText(text);
+  const ascent = metrics.actualBoundingBoxAscent || fontSize * 0.72;
+  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.18;
+  const baselineY = centerY + (ascent - descent) / 2;
+  context.fillText(text, centerX, baselineY, maxWidth);
 }
 
 function drawContainedCharacter(image, size, bobOffset) {
