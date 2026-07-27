@@ -369,10 +369,8 @@ async function toggleFullscreen() {
     } else {
       const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
       if (isIOS && !navigator.standalone) {
-        state.pseudoFullscreen = true;
-        els.stage.classList.add("is-mobile-expanded");
-        window.scrollTo(0, 1);
-        showFeedback("หมุน iPhone เป็นแนวนอน หรือเพิ่มเกมไปยังหน้าจอโฮมเพื่อซ่อนแถบ Safari", "#ffffff", 6000);
+        window.alert("iPhone ต้องเปิดเกมใน Safari ก่อน แล้วกด แชร์ > เพิ่มไปยังหน้าจอโฮม จึงจะเล่นแบบเต็มจอได้");
+        return;
       } else if (requestFullscreen) {
         await requestFullscreen.call(els.stage);
       } else {
