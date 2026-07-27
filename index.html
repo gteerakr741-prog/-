@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>อาณาจักรเห็ด แม่ ก กา Hunter</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="stage" aria-label="อาณาจักรเห็ด แม่ ก กา Hunter">
+        <video id="camera" class="camera" autoplay muted playsinline></video>
+        <audio id="bgMusic" loop preload="metadata">
+          <source src="assets/เสียงพื้นหลัง.mp3" type="audio/mpeg" />
+        </audio>
+        <audio id="menuMusic" loop preload="auto" autoplay><source src="assets/menu-game.mp3" type="audio/mpeg" /></audio>
+        <audio id="startSound" preload="auto"><source src="assets/start-game.mp3" type="audio/mpeg" /></audio>
+        <audio id="finalCountdownSound" preload="auto"><source src="assets/final-5-seconds.mp3" type="audio/mpeg" /></audio>
+        <audio id="bonusSound" preload="auto"><source src="assets/game-bonus.mp3" type="audio/mpeg" /></audio>
+        <audio id="bigBonusSound" preload="auto"><source src="assets/เสียงได้โบนัท.mp3" type="audio/mpeg" /></audio>
+        <audio id="wrongAnswerSound" preload="auto"><source src="assets/wrong-answer.mp3" type="audio/mpeg" /></audio>
+        <audio id="loseSound" preload="auto"><source src="assets/แพ้.mp3" type="audio/mpeg" /></audio>
+        <audio id="endSound" preload="auto"><source src="assets/เสียงจบเกมส์.mp3" type="audio/mpeg" /></audio>
+        <canvas id="gameCanvas" class="game-canvas"></canvas>
+
+        <div class="ar-frame" aria-hidden="true">
+          <span class="spore spore-a"></span>
+          <span class="spore spore-b"></span>
+          <span class="spore spore-c"></span>
+          <span class="glow glow-a"></span>
+          <span class="glow glow-b"></span>
+        </div>
+
+        <header class="hud" id="hud" hidden>
+          <div class="hud-pill progress"><span>ด่าน</span><strong id="level">1/4</strong><small>เหรียญเห็ด <b id="coins">0</b></small></div>
+          <div class="hud-pill score-pill"><span>คะแนน</span><strong id="score">0</strong><div class="combo-meter" aria-label="พลังคอมโบ"><i id="comboMeter"></i></div><small id="comboMeterLabel">พลังเมฆทอง 0/8</small></div>
+          <div class="hud-pill timer"><span>เวลา</span><strong id="timer">60</strong></div>
+          <div class="hud-pill hearts" id="hearts" aria-label="หัวใจ">♥ ♥ ♥</div>
+        </header>
+
+        <button id="pauseBtn" class="pause-button" type="button" aria-label="พักเกม" hidden><span aria-hidden="true"></span></button>
+        <section class="camera-test-controls" id="cameraTestControls" hidden>
+          <div class="camera-test-copy">
+            <strong>ทดสอบกล้อง</strong>
+            <span>ลองจีบนิ้วโป้งกับนิ้วชี้ เมื่อจุดสองจุดเปลี่ยนเป็นสีเขียวแสดงว่าพร้อมแล้ว</span>
+          </div>
+          <div class="camera-test-actions">
+            <button id="cameraBackBtn" class="camera-back-button" type="button">← กลับหน้าเมนู</button>
+            <button id="cameraStartBtn" class="camera-start-button" type="button">▶ เริ่มเกม</button>
+          </div>
+        </section>
+        <section class="pause-overlay" id="pauseOverlay" hidden>
+          <div class="pause-card">
+            <strong>พักเกม</strong>
+            <p>ต้องการทำอะไรต่อ?</p>
+            <button id="resumeBtn" type="button">เล่นต่อ</button>
+            <button id="pauseMenuBtn" class="pause-menu" type="button">กลับไปหน้าเมนู</button>
+          </div>
+        </section>
+
+        <div class="combo-pop" id="comboPop" aria-live="polite"></div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+        <div class="finger-cursor" id="fingerCursor" hidden></div>
+        <div class="thumb-cursor" id="thumbCursor" hidden></div>
+        <div class="red-flash" id="redFlash"></div>
+
+        <section class="screen menu-screen is-active" id="menuScreen">
+          <canvas id="menuDanceCanvas" aria-hidden="true"></canvas>
+          <button id="fullscreenBtn" class="menu-fullscreen-button" type="button" aria-label="เต็มหน้าจอ" title="เต็มหน้าจอ">⛶</button>
+          <button id="soundBtn" class="menu-sound-button" type="button" aria-label="ปิดเสียง" aria-pressed="false" title="ปิดเสียง">🔊</button>
+          <div class="menu-button-tray" aria-label="เมนูเกม">
+            <button id="settingBtn" class="menu-image-button setting-menu-button" type="button" aria-label="ตั้งเวลา"><img src="assets/menu/setting-button.png" alt="" /></button>
+            <button id="startBtn" class="menu-image-button start-menu-button" type="button" aria-label="เริ่มเกม"><img src="assets/menu/start-game-button.png" alt="" /></button>
+            <button id="cameraBtn" class="menu-image-button camera-menu-button" type="button" aria-label="ทดสอบกล้อง"><img src="assets/menu/camera-test-button.png" alt="" /></button>
+            <button id="howBtn" class="menu-image-button guide-menu-button" type="button" aria-label="วิธีเล่น"><img src="assets/menu/guide-button.png" alt="" /></button>
+          </div>
+        </section>
+
+        <section class="screen info-screen" id="infoScreen">
+          <article class="dialog">
+            <h2>วิธีเล่น</h2>
+            <p>จับเฉพาะคำแม่ ก กา หรือคำที่ไม่มีตัวสะกด เช่น กา ตา มา ดู ไป ใจ</p>
+            <p>ถ้าจับคำที่มีตัวสะกด เช่น กบ นก มด บ้าน รถ จะเสียหัวใจ และหน้าจอกระพริบสีแดง</p>
+            <p>ถ้ากล้องหรือตรวจนิ้วไม่พร้อม ใช้เมาส์หรือแตะหน้าจอแทนได้ทันที</p>
+            <button id="closeInfoBtn" class="primary" type="button">เข้าใจแล้ว</button>
+          </article>
+        </section>
+
+        <section class="screen time-screen" id="timeScreen">
+          <article class="dialog time-dialog">
+            <h2>ตั้งเวลา</h2>
+            <div class="time-options">
+              <button type="button" data-duration="60">60 วินาที</button>
+              <button type="button" data-duration="90">90 วินาที</button>
+              <button type="button" data-duration="120">120 วินาที</button>
+            </div>
+            <button id="closeTimeBtn" type="button">กลับ</button>
+          </article>
+        </section>
+
+        <section class="screen result-screen" id="resultScreen">
+          <article class="result-board">
+            <h2 id="resultTitle" class="sr-only">จบรอบแล้ว!</h2>
+            <div class="result-sparkles" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <dl class="result-stats">
+              <div class="score"><dt>คะแนน</dt><dd id="finalScore">0</dd></div>
+              <div class="accuracy"><dt>ความแม่นยำ</dt><dd id="accuracy">0%</dd></div>
+              <div class="correct"><dt>ถูก</dt><dd id="correctCount">0</dd></div>
+              <div class="wrong"><dt>ผิด</dt><dd id="wrongCount">0</dd></div>
+              <div class="combo"><dt>คอมโบสูงสุด</dt><dd id="maxCombo">0</dd></div>
+              <div class="high-score"><dt>คะแนนสูงสุด</dt><dd id="highScore">0</dd></div>
+            </dl>
+            <span id="learnedWords" class="sr-only">-</span>
+            <button id="replayBtn" class="result-action replay-action" type="button" aria-label="เล่นอีกครั้ง">เล่นอีกครั้ง</button>
+            <button id="homeBtn" class="result-action home-action" type="button" aria-label="กลับหน้าแรก">กลับหน้าแรก</button>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script defer src="app.js"></script>
+  </body>
+</html>
