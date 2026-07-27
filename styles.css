@@ -45,6 +45,15 @@ button {
   box-shadow: 0 24px 70px rgba(50, 39, 22, 0.24);
 }
 
+.stage.is-mobile-expanded {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 1000;
+  width: min(100vw, 177.777dvh);
+  height: min(100dvh, 56.25vw);
+}
+
 /* Strong feedback is reserved for an incorrect answer. */
 .stage.is-shaking {
   animation: wrongShake 360ms cubic-bezier(.36, .07, .19, .97) both;
@@ -946,9 +955,9 @@ button {
 
 @media (max-width: 760px) {
   .stage {
-    width: 100vw;
-    height: 100vh;
-    min-height: 100vh;
+    width: min(100vw, 177.777dvh);
+    height: min(100dvh, 56.25vw);
+    min-height: 0;
   }
 
   .hud {

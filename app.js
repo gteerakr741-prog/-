@@ -59,6 +59,7 @@ const els = {
 
 const ctx = els.canvas.getContext("2d");
 const menuDanceCtx = els.menuDanceCanvas.getContext("2d");
+const isDesktopChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent) && window.matchMedia("(pointer: fine)").matches;
 const menuImage = new Image();
 const cloudSheet = new Image();
 let cloudCanvas = null;
@@ -153,6 +154,9 @@ const state = {
   lastVideoTime: -1,
   lastHandDetectionAt: 0,
   handDetectionInterval: 50,
+  lastRenderAt: 0,
+  renderInterval: isDesktopChrome ? 1000 / 30 : 0,
+  pseudoFullscreen: false,
   audio: null
 };
 
@@ -341,15 +345,34 @@ function updateSoundButton() {
 
 async function toggleFullscreen() {
   try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await els.stage.requestFullscreen();
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else if (state.pseudoFullscreen) {
+      state.pseudoFullscreen = false;
+      els.stage.classList.remove("is-mobile-expanded");
+    } else {
+      const requestFullscreen = els.stage.requestFullscreen || els.stage.webkitRequestFullscreen;
+      if (requestFullscreen) {
+        await requestFullscreen.call(els.stage);
+      } else {
+        state.pseudoFullscreen = true;
+        els.stage.classList.add("is-mobile-expanded");
+        window.scrollTo(0, 1);
+      }
+      if (screen.orientation?.lock) {
+        screen.orientation.lock("landscape").catch(() => {});
+      }
+    }
   } catch {
-    // The browser may reserve fullscreen for its own toolbar or settings.
+    state.pseudoFullscreen = true;
+    els.stage.classList.add("is-mobile-expanded");
+    window.scrollTo(0, 1);
   }
+  updateFullscreenButton();
 }
 
 function updateFullscreenButton() {
-  const isFullscreen = Boolean(document.fullscreenElement);
+  const isFullscreen = Boolean(document.fullscreenElement || state.pseudoFullscreen);
   const label = isFullscreen ? "ออกจากเต็มหน้าจอ" : "เต็มหน้าจอ";
   els.fullscreenBtn.textContent = isFullscreen ? "×" : "⛶";
   els.fullscreenBtn.setAttribute("aria-label", label);
@@ -471,6 +494,11 @@ async function loadHandTracking() {
 }
 
 function loop(now) {
+  if (state.renderInterval && now - state.lastRenderAt < state.renderInterval - 2) {
+    requestAnimationFrame(loop);
+    return;
+  }
+  state.lastRenderAt = now;
   const rect = els.stage.getBoundingClientRect();
   ctx.clearRect(0, 0, rect.width, rect.height);
 
@@ -663,12 +691,16 @@ function updateHandPointer(now, rect) {
   state.thumb.x = (1 - thumb.x) * rect.width;
   state.thumb.y = thumb.y * rect.height;
   state.thumb.active = true;
-  state.pinchDistance = Math.hypot(tip.x - thumb.x, tip.y - thumb.y);
+  const wrist = nearestHand[0];
+  const middlePalm = nearestHand[9];
+  const pinchDistance = Math.hypot(tip.x - thumb.x, tip.y - thumb.y);
+  const palmSize = wrist && middlePalm ? Math.hypot(wrist.x - middlePalm.x, wrist.y - middlePalm.y) : 0;
+  state.pinchDistance = palmSize > 0.04 ? pinchDistance / palmSize : pinchDistance / 0.15;
   updateResultActionFocus();
 
-  // Use two thresholds so one pinch produces one catch, even when the hand shakes.
-  const pinchStarts = state.pinchDistance < 0.058;
-  const pinchReleases = state.pinchDistance > 0.09;
+  // Scale the pinch against the player's palm so phones work at different distances.
+  const pinchStarts = state.pinchDistance < 0.38;
+  const pinchReleases = state.pinchDistance > 0.58;
   if (!state.pinchDown && pinchStarts) {
     state.pinchDown = true;
     requestCatch();

@@ -1,0 +1,19 @@
+{
+  "name": "อาณาจักรเห็ด แม่ ก กา",
+  "short_name": "แม่ ก กา",
+  "description": "เกมจับคำแม่ ก กา ด้วยกล้องและการจีบนิ้ว",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#75c56a",
+  "theme_color": "#75c56a",
+  "icons": [
+    {
+      "src": "assets/characters/mushroom_character_01.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
