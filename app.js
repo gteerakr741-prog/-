@@ -77,8 +77,6 @@ const startsMuted = new URLSearchParams(window.location.search).get("sound") ===
 document.body.classList.toggle("is-ios-device", isIOS);
 if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS);
 const menuImage = new Image();
-const cloudSheet = new Image();
-let cloudCanvas = null;
 const sceneImages = [
   "assets/พื้นหลัง(1).png",
   "assets/พื้นหลัง (2).png",
@@ -98,20 +96,6 @@ const characterImages = Array.from({ length: 20 }, (_, index) => {
 const wordCloudImage = new Image();
 wordCloudImage.src = "assets/game-word-cloud.png";
 const wordCloudImages = [wordCloudImage];
-cloudSheet.addEventListener("load", () => {
-  cloudCanvas = cloudSheet;
-});
-cloudSheet.src = "assets/pack-white-clouds-clean.png";
-
-const cloudTiles = [
-  [370, 80, 305, 140],
-  [705, 68, 275, 170],
-  [18, 278, 325, 205],
-  [398, 295, 250, 175],
-  [708, 302, 270, 165],
-  [58, 522, 245, 175],
-  [380, 522, 285, 180]
-];
 
 const correctWords = [
   ["กา", 0, 0], ["ตา", 1, 0], ["มา", 2, 0], ["ดู", 3, 0], ["ไป", 4, 0], ["ใจ", 5, 0],
@@ -418,7 +402,6 @@ async function bootGame() {
 
   const imageTasks = [
     waitForImage(menuImage),
-    waitForImage(cloudSheet),
     waitForImage(wordCloudImage),
     ...sceneImages.map(waitForImage),
     ...characterImages.map(waitForImage),
@@ -933,7 +916,6 @@ function loop(now) {
 
   if (state.mode === "playing") drawSceneBackdrop(rect);
   else if (!state.cameraReady) drawMenuBackdrop(rect);
-  if (state.mode === "playing") drawCloudLayer(rect, now);
   drawAmbient(rect, now);
 
   const needsHandTracking = state.mode === "camera" || (state.mode === "playing" && !state.paused);
@@ -1030,25 +1012,6 @@ function drawCoverImage(image, rect) {
     sy = (image.height - sh) / 2;
   }
   ctx.drawImage(image, sx, sy, sw, sh, 0, 0, rect.width, rect.height);
-}
-
-function drawCloudLayer(rect, now) {
-  if (!cloudCanvas) return;
-  const sceneOpacity = state.cameraReady ? 0.24 : 0.56;
-  const sceneScale = state.level === 2 ? 0.95 : state.level === 3 ? 0.82 : 1;
-  const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
-  ctx.save();
-  ctx.globalAlpha = sceneOpacity;
-  for (let index = 0; index < 4; index += 1) {
-    const [sx, sy, sw, sh] = cloudTiles[(state.level + index * 2) % cloudTiles.length];
-    const width = (150 + index * 48) * sceneScale * viewportScale;
-    const height = width * (sh / sw);
-    const speed = 0.008 + index * 0.002;
-    const x = ((now * speed + index * 290) % (rect.width + width * 2)) - width;
-    const y = rect.height * 0.14 + ((index * 127 * viewportScale + state.level * 41) % Math.max(rect.height * 0.3, rect.height * 0.46));
-    ctx.drawImage(cloudCanvas, sx, sy, sw, sh, x, y, width, height);
-  }
-  ctx.restore();
 }
 
 function drawAmbient(rect, now) {
