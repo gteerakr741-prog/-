@@ -643,26 +643,6 @@ body.is-game-expanded .game-shell {
   pointer-events: none;
 }
 
-.menu-character-shadows {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.menu-character-shadows i {
-  position: absolute;
-  top: var(--y);
-  left: var(--x);
-  width: var(--w);
-  height: 3.3%;
-  min-height: 7px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(42, 25, 9, 0.56) 0%, rgba(54, 34, 13, 0.36) 46%, rgba(61, 39, 16, 0) 78%);
-  opacity: 0.92;
-}
-
 .menu-sound-button,
 .menu-fullscreen-button {
   position: absolute;
