@@ -118,6 +118,25 @@ button {
   background: #e99a20;
 }
 
+.entry-chrome {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+  border: 2px solid rgba(24, 77, 126, 0.22);
+  border-radius: 8px;
+  background: #2588d8;
+  color: #ffffff;
+  font-weight: 700;
+  transition: transform 160ms ease, filter 160ms ease;
+  touch-action: manipulation;
+}
+
+.entry-chrome:hover,
+.entry-chrome:focus-visible {
+  transform: scale(1.03);
+  filter: brightness(1.08);
+}
+
 .entry-panel p {
   margin: 12px 0 0;
   color: #7b2f20;
@@ -414,7 +433,11 @@ body.is-game-expanded .game-shell {
 }
 
 .hud-pill {
-  min-height: calc(100px * var(--ui-scale));
+  width: calc(150px * var(--ui-scale));
+  height: calc(100px * var(--ui-scale));
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 3 / 2;
   padding: calc(22px * var(--ui-scale)) calc(14px * var(--ui-scale)) calc(8px * var(--ui-scale));
   border: 0;
   border-radius: calc(12px * var(--ui-scale));
@@ -1239,12 +1262,12 @@ body.is-game-expanded .game-shell {
   }
 
   .hud {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(4, calc(150px * var(--ui-scale)));
+    gap: calc(6px * var(--ui-scale));
   }
 
   .hud-pill {
-    min-height: max(42px, calc(68px * var(--ui-scale)));
+    min-height: 0;
     padding: calc(14px * var(--ui-scale)) calc(4px * var(--ui-scale)) calc(4px * var(--ui-scale));
   }
 
@@ -1290,12 +1313,12 @@ body.is-game-expanded .game-shell {
     top: max(calc(5px * var(--ui-scale)), env(safe-area-inset-top));
     left: max(calc(8px * var(--ui-scale)), env(safe-area-inset-left));
     right: max(calc(8px * var(--ui-scale)), env(safe-area-inset-right));
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, calc(150px * var(--ui-scale)));
     gap: max(3px, calc(6px * var(--ui-scale)));
   }
 
   .hud-pill {
-    min-height: max(42px, calc(64px * var(--ui-scale)));
+    min-height: 0;
     padding: max(7px, calc(11px * var(--ui-scale))) calc(5px * var(--ui-scale)) calc(3px * var(--ui-scale));
     border-radius: max(5px, calc(8px * var(--ui-scale)));
   }

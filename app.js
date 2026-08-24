@@ -26,6 +26,7 @@ const els = {
   entryGate: document.querySelector("#entryGate"),
   entryFullscreenBtn: document.querySelector("#entryFullscreenBtn"),
   entryWindowBtn: document.querySelector("#entryWindowBtn"),
+  openChromeBtn: document.querySelector("#openChromeBtn"),
   entryMessage: document.querySelector("#entryMessage"),
   startBtn: document.querySelector("#startBtn"),
   howBtn: document.querySelector("#howBtn"),
@@ -74,6 +75,7 @@ const isIPhone = /iPhone|iPod/i.test(navigator.userAgent);
 const isIOS = isIPad || isIPhone;
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 document.body.classList.toggle("is-ios-device", isIOS);
+if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS);
 const menuImage = new Image();
 const cloudSheet = new Image();
 let cloudCanvas = null;
@@ -171,7 +173,7 @@ const state = {
   handLandmarker: null,
   lastVideoTime: -1,
   lastHandDetectionAt: 0,
-  handDetectionInterval: isAndroid || isIOS ? 66 : 50,
+  handDetectionInterval: isIOS ? 88 : isAndroid ? 76 : 50,
   handTrackingDelegate: null,
   handTrackingLoading: false,
   handTrackingRecoveries: 0,
@@ -183,7 +185,8 @@ const state = {
   pseudoFullscreen: false,
   audio: null,
   audioBuffers: new Map(),
-  audioBufferLoads: new Map()
+  audioBufferLoads: new Map(),
+  effectAudioReady: null
 };
 
 syncViewportSize();
@@ -218,6 +221,7 @@ els.soundBtn?.addEventListener("click", toggleSound);
 els.fullscreenBtn.addEventListener("click", toggleFullscreen);
 els.entryFullscreenBtn.addEventListener("click", enterPreferredDisplay);
 els.entryWindowBtn.addEventListener("click", enterWindowedDisplay);
+els.openChromeBtn?.addEventListener("click", openInChrome);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
@@ -332,8 +336,8 @@ function resizeCanvas() {
         creature.x *= scaleX;
         creature.y *= scaleY;
         creature.size *= sizeScale;
-        creature.vx *= scaleX;
-        creature.vy *= scaleY;
+        creature.vx *= sizeScale;
+        creature.vy *= sizeScale;
         creature.wobble *= sizeScale;
       });
       state.particles.forEach((particle) => {
@@ -349,7 +353,8 @@ function resizeCanvas() {
   const nativeDpr = window.devicePixelRatio || 1;
   const pixelBudget = 1920 * 1080;
   const budgetDpr = Math.sqrt(pixelBudget / Math.max(1, rect.width * rect.height));
-  const dpr = Math.max(1, Math.min(nativeDpr, 1.25, budgetDpr));
+  const dprLimit = isAndroid || isIOS ? 1 : 1.25;
+  const dpr = Math.max(1, Math.min(nativeDpr, dprLimit, budgetDpr));
   els.canvas.width = Math.round(rect.width * dpr);
   els.canvas.height = Math.round(rect.height * dpr);
   els.canvas.style.width = `${rect.width}px`;
@@ -427,7 +432,7 @@ async function bootGame() {
   ];
   const mediaTasks = [els.menuMusic, els.startSound, els.finalCountdownSound, els.bonusSound, els.bigBonusSound, els.wrongAnswerSound, els.loseSound, els.endSound]
     .map(waitForMediaMetadata);
-  const tasks = [document.fonts?.ready || Promise.resolve(), waitForMediaMetadata(els.menuDanceVideo), ...imageTasks, ...mediaTasks];
+  const tasks = [document.fonts?.ready || Promise.resolve(), waitForMediaMetadata(els.menuDanceVideo), prepareEffectAudio(), ...imageTasks, ...mediaTasks];
   let completed = 0;
   await Promise.allSettled(tasks.map((task) => Promise.resolve(task).finally(() => {
     completed += 1;
@@ -463,7 +468,7 @@ async function startGame() {
   els.entryGate.hidden = true;
   showScreen(els.loading);
   setLoadingProgress(12, "กำลังเปิดกล้อง...");
-  const cameraAvailable = await ensureCamera();
+  const [cameraAvailable] = await Promise.all([ensureCamera(), prepareEffectAudio()]);
   setLoadingProgress(68, cameraAvailable ? "กำลังปรับระบบตรวจจับนิ้ว..." : "กำลังเตรียมโหมดสัมผัส...");
   if (!state.handReady) await loadHandTracking(null, true);
   setLoadingProgress(100, cameraAvailable ? "ตรวจจับนิ้วพร้อมแล้ว!" : "พร้อมเล่นด้วยการแตะหน้าจอ!");
@@ -770,8 +775,37 @@ async function preloadAudioAsset(audio) {
 function unlockGameAudio() {
   if (!state.sound) return;
   const context = audioContext();
-  context?.resume?.().catch(() => {});
-  effectAudioAssets().forEach((audio) => void preloadAudioAsset(audio));
+  if (context) {
+    context.resume?.().catch(() => {});
+    const source = context.createBufferSource();
+    source.buffer = context.createBuffer(1, 1, 22050);
+    source.connect(context.destination);
+    source.start(0);
+  }
+  void prepareEffectAudio();
+}
+
+function prepareEffectAudio() {
+  state.effectAudioReady ||= Promise.allSettled(effectAudioAssets().map(preloadAudioAsset));
+  return state.effectAudioReady;
+}
+
+function openInChrome() {
+  unlockGameAudio();
+  const current = new URL(window.location.href);
+  current.searchParams.delete("sound");
+  if (isAndroid) {
+    const target = `${current.host}${current.pathname}${current.search}${current.hash}`;
+    window.location.href = `intent://${target}#Intent;scheme=${current.protocol.slice(0, -1)};package=com.android.chrome;end`;
+    return;
+  }
+  if (isIOS) {
+    const scheme = current.protocol === "https:" ? "googlechromes:" : "googlechrome:";
+    window.location.href = `${scheme}//${current.host}${current.pathname}${current.search}${current.hash}`;
+    window.setTimeout(showEntryDisplayHelp, 900);
+    return;
+  }
+  showEntryDisplayHelp();
 }
 
 async function ensureCamera() {
@@ -1020,7 +1054,8 @@ function drawCloudLayer(rect, now) {
 function drawAmbient(rect, now) {
   ctx.save();
   ctx.globalAlpha = state.cameraReady ? 0.3 : 0.55;
-  for (let i = 0; i < 18; i += 1) {
+  const ambientCount = isAndroid || isIOS ? 10 : 18;
+  for (let i = 0; i < ambientCount; i += 1) {
     const scene = state.mode === "playing" ? state.level : 1;
     const x = scene === 4 ? (i * 157 + now * 0.03) % (rect.width + 80) - 40 : (i * 211 + now * 0.018) % (rect.width + 80) - 40;
     const y = scene === 1 ? rect.height - ((i * 91 + now * 0.024) % (rect.height + 80)) : scene === 3 ? rect.height - ((i * 97 + now * 0.028) % (rect.height + 90)) : (i * 97 + Math.sin(now / 900 + i) * 26) % rect.height;
@@ -1163,7 +1198,9 @@ function spawnCreature(rect, startInPlayfield = false) {
   const side = Math.floor(Math.random() * 4);
   const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
   const size = Math.max(118 * viewportScale, Math.min(rect.width, rect.height) * (0.16 + Math.random() * 0.045));
-  const speed = (62 + Math.random() * 72 + state.level * 24 + (60 - state.timeLeft) * 1.3) * viewportScale;
+  const elapsed = Math.max(0, state.roundDuration - state.timeLeft);
+  const compactMotionScale = Math.max(0.72, Math.min(1, rect.height / 500));
+  const speed = (62 + Math.random() * 72 + state.level * 24 + elapsed * 1.3) * viewportScale * compactMotionScale;
   const creature = {
     ...item,
     id: crypto.randomUUID(),
@@ -1516,8 +1553,9 @@ function updateParticles(delta) {
     particle.vy += (particle.gravity ?? 120) * delta;
     return particle.life > 0;
   });
-  if (state.particles.length > 240) {
-    state.particles.splice(0, state.particles.length - 240);
+  const particleLimit = isAndroid || isIOS ? 140 : 240;
+  if (state.particles.length > particleLimit) {
+    state.particles.splice(0, state.particles.length - particleLimit);
   }
 }
 
