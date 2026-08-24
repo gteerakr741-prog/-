@@ -715,6 +715,7 @@ function suspendForBackground() {
 function startBackgroundMusic() {
   if (!state.sound) return;
   stopMenuMusic();
+  els.bgMusic.muted = false;
   els.bgMusic.volume = 0.14;
   els.bgMusic.play().catch(() => {
     // Browsers require a player gesture before background audio can begin.
@@ -743,6 +744,7 @@ function unlockMenuMusic() {
 function stopBackgroundMusic() {
   els.bgMusic.pause();
   els.bgMusic.currentTime = 0;
+  els.bgMusic.muted = true;
 }
 
 function stopMenuMusic() {
@@ -822,8 +824,8 @@ function unlockGameAudio() {
 
 function primeBackgroundMusic() {
   if (!state.sound || !els.bgMusic.paused) return;
-  els.bgMusic.muted = false;
-  els.bgMusic.volume = 0;
+  // iOS ignores programmatic volume changes, so muted must carry the silent unlock.
+  els.bgMusic.muted = true;
   els.bgMusic.play().catch(() => {});
 }
 
