@@ -480,11 +480,11 @@ function deactivateMenuVideo() {
 
 async function startGame() {
   if (state.mode === "preparing") return;
+  unlockGameAudio();
   if (isPortraitMobile()) {
     showOrientationGate(startGame);
     return;
   }
-  unlockGameAudio();
   stopMenuMusic();
   deactivateMenuVideo();
   state.mode = "preparing";
@@ -801,6 +801,7 @@ async function preloadAudioAsset(audio) {
 
 function unlockGameAudio() {
   if (!state.sound) return;
+  primeBackgroundMusic();
   const context = audioContext();
   if (context) {
     context.resume?.().catch(() => {});
@@ -810,6 +811,13 @@ function unlockGameAudio() {
     source.start(0);
   }
   void prepareEffectAudio();
+}
+
+function primeBackgroundMusic() {
+  if (!state.sound || !els.bgMusic.paused) return;
+  els.bgMusic.muted = false;
+  els.bgMusic.volume = 0;
+  els.bgMusic.play().catch(() => {});
 }
 
 function prepareEffectAudio() {
