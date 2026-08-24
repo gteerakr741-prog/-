@@ -57,8 +57,10 @@ const els = {
   hearts: document.querySelector("#hearts"),
   comboPop: document.querySelector("#comboPop"),
   feedback: document.querySelector("#feedback"),
+  pinchBeam: document.querySelector("#pinchBeam"),
   cursor: document.querySelector("#fingerCursor"),
   thumbCursor: document.querySelector("#thumbCursor"),
+  faceEffectsToggle: document.querySelector("#faceEffectsToggle"),
   redFlash: document.querySelector("#redFlash"),
   finalScore: document.querySelector("#finalScore"),
   accuracy: document.querySelector("#accuracy"),
@@ -78,6 +80,8 @@ const isIOS = isIPad || isIPhone;
 const isChromeBrowser = isIOS
   ? /CriOS/i.test(navigator.userAgent)
   : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+const lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+  || (navigator.deviceMemory && navigator.deviceMemory <= 4);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 document.body.classList.toggle("is-ios-device", isIOS);
 if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS) || isChromeBrowser;
@@ -101,6 +105,16 @@ const characterImages = Array.from({ length: 20 }, (_, index) => {
 const wordCloudImage = new Image();
 wordCloudImage.src = "assets/game-word-cloud.png";
 const wordCloudImages = [wordCloudImage];
+const mushroomHatImage = new Image();
+mushroomHatImage.src = "assets/filters/mushroom-hat.webp";
+
+function readFaceEffectsPreference() {
+  try {
+    return localStorage.getItem("faceEffects") !== "off";
+  } catch {
+    return true;
+  }
+}
 
 const correctWords = [
   ["กา", 0, 0], ["ตา", 1, 0], ["มา", 2, 0], ["ดู", 3, 0], ["ไป", 4, 0], ["ใจ", 5, 0],
@@ -174,6 +188,18 @@ const state = {
   stageRect: null,
   inactiveCanvasCleared: false,
   handTrackingPromise: null,
+  faceEffectsEnabled: readFaceEffectsPreference(),
+  faceDetector: null,
+  faceReady: false,
+  faceTrackingLoading: false,
+  faceTrackingPromise: null,
+  lastFaceVideoTime: -1,
+  lastFaceDetectionAt: 0,
+  faceDetectionInterval: lowPowerDevice ? 320 : isIOS || isAndroid ? 240 : 180,
+  faceAnchor: null,
+  faceMisses: 0,
+  faceSlowSamples: 0,
+  faceRuntimeSuppressed: false,
   pseudoFullscreen: false,
   audio: null,
   audioBuffers: new Map(),
@@ -218,6 +244,17 @@ els.orientationBackBtn?.addEventListener("click", cancelOrientationGate);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
+els.faceEffectsToggle.checked = state.faceEffectsEnabled;
+els.faceEffectsToggle.addEventListener("change", () => {
+  state.faceEffectsEnabled = els.faceEffectsToggle.checked;
+  try {
+    localStorage.setItem("faceEffects", state.faceEffectsEnabled ? "on" : "off");
+  } catch {}
+  state.faceRuntimeSuppressed = false;
+  state.faceSlowSamples = 0;
+  if (!state.faceEffectsEnabled) state.faceAnchor = null;
+  else if (state.cameraReady) void loadFaceTracking(true);
+});
 els.closeTimeBtn.addEventListener("click", showMenu);
 els.timeOptions.forEach((button) => button.addEventListener("click", () => {
   state.roundDuration = Number(button.dataset.duration);
@@ -438,6 +475,7 @@ async function bootGame() {
   const imageTasks = [
     waitForImage(menuImage),
     waitForImage(wordCloudImage),
+    waitForImage(mushroomHatImage),
     ...sceneImages.map(waitForImage),
     ...characterImages.map(waitForImage),
     preloadImage("assets/loading/loading-background.webp"),
@@ -465,6 +503,7 @@ async function bootGame() {
   await sleep(420);
   showMenu();
   els.entryGate.hidden = false;
+  if (state.faceEffectsEnabled) void loadFaceTracking(true);
 }
 
 function activateMenuVideo() {
@@ -700,6 +739,9 @@ function stopCameraStream() {
   els.camera.classList.remove("is-live");
   state.cameraReady = false;
   state.lastVideoTime = -1;
+  state.lastFaceVideoTime = -1;
+  state.faceAnchor = null;
+  state.faceMisses = 0;
   state.pinchDown = false;
   state.pointer.active = false;
   state.thumb.active = false;
@@ -874,6 +916,7 @@ async function ensureCamera() {
     els.camera.classList.add("is-live");
     state.cameraReady = true;
     loadHandTracking();
+    if (state.faceEffectsEnabled) void loadFaceTracking(true);
     return true;
   } catch {
     if (requestId === state.cameraRequestId) state.cameraReady = false;
@@ -927,6 +970,39 @@ async function loadHandTracking(forcedDelegate = null, silent = false) {
     }
   })();
   return state.handTrackingPromise;
+}
+
+async function loadFaceTracking(silent = false) {
+  if (!state.faceEffectsEnabled) return false;
+  if (state.faceReady) return true;
+  if (state.faceTrackingLoading) return state.faceTrackingPromise;
+  state.faceTrackingLoading = true;
+  state.faceTrackingPromise = (async () => {
+    try {
+      const vision = await import("./assets/vendor/mediapipe/vision_bundle.mjs");
+      const resolver = await vision.FilesetResolver.forVisionTasks("./assets/vendor/mediapipe/wasm");
+      state.faceDetector = await vision.FaceDetector.createFromOptions(resolver, {
+        baseOptions: {
+          modelAssetPath: "./assets/vendor/mediapipe/models/blaze_face_short_range.tflite",
+          delegate: "CPU"
+        },
+        runningMode: "VIDEO",
+        minDetectionConfidence: 0.55,
+        minSuppressionThreshold: 0.3
+      });
+      state.faceReady = true;
+      state.lastFaceVideoTime = -1;
+      return true;
+    } catch {
+      state.faceReady = false;
+      if (!silent) showFeedback("หมวก AR ไม่พร้อม แต่ยังเล่นได้ตามปกติ", "#ffffff");
+      return false;
+    } finally {
+      state.faceTrackingLoading = false;
+      state.faceTrackingPromise = null;
+    }
+  })();
+  return state.faceTrackingPromise;
 }
 
 function recoverHandTracking() {
@@ -987,6 +1063,10 @@ function loop(now) {
       recoverHandTracking();
     }
   }
+  if (state.mode === "playing" && !state.paused && state.cameraReady && state.faceEffectsEnabled && !state.faceRuntimeSuppressed && state.faceReady) {
+    updateFaceFilter(now, rect);
+  }
+  drawFaceFilter(now);
 
   if (state.running && !state.paused) {
     const delta = Math.max(0, Math.min((now - state.lastTick) / 1000, 0.05));
@@ -1033,7 +1113,7 @@ function drawMenuBackdrop(rect) {
 }
 
 function drawSceneBackdrop(rect) {
-  const overlayAlpha = state.cameraReady ? 0.42 : 1;
+  const overlayAlpha = state.cameraReady ? 0.26 : 1;
   const transition = state.sceneTransition;
 
   if (transition) {
@@ -1052,7 +1132,8 @@ function drawSceneBackdrop(rect) {
     ctx.restore();
   }
 
-  ctx.fillStyle = state.level === 2 ? "rgba(29, 12, 70, 0.28)" : state.level === 3 ? "rgba(0, 78, 111, 0.16)" : state.level === 4 ? "rgba(255, 174, 72, 0.12)" : "rgba(24, 71, 32, 0.1)";
+  const tintScale = state.cameraReady ? 0.58 : 1;
+  ctx.fillStyle = state.level === 2 ? `rgba(29, 12, 70, ${0.28 * tintScale})` : state.level === 3 ? `rgba(0, 78, 111, ${0.16 * tintScale})` : state.level === 4 ? `rgba(255, 174, 72, ${0.12 * tintScale})` : `rgba(24, 71, 32, ${0.1 * tintScale})`;
   ctx.fillRect(0, 0, rect.width, rect.height);
 }
 
@@ -1076,8 +1157,8 @@ function drawCoverImage(image, rect) {
 
 function drawAmbient(rect, now) {
   ctx.save();
-  ctx.globalAlpha = state.cameraReady ? 0.3 : 0.55;
-  const ambientCount = isAndroid || isIOS ? 10 : 18;
+  ctx.globalAlpha = state.cameraReady ? 0.18 : 0.55;
+  const ambientCount = isAndroid || isIOS ? 7 : 14;
   for (let i = 0; i < ambientCount; i += 1) {
     const scene = state.mode === "playing" ? state.level : 1;
     const x = scene === 4 ? (i * 157 + now * 0.03) % (rect.width + 80) - 40 : (i * 211 + now * 0.018) % (rect.width + 80) - 40;
@@ -1099,6 +1180,84 @@ function drawAmbient(rect, now) {
     }
   }
   ctx.restore();
+}
+
+function updateFaceFilter(now, rect) {
+  if (els.camera.readyState < 2 || els.camera.currentTime === state.lastFaceVideoTime) return;
+  if (now - state.lastFaceDetectionAt < state.faceDetectionInterval) return;
+  state.lastFaceDetectionAt = now;
+  state.lastFaceVideoTime = els.camera.currentTime;
+  try {
+    const detectionStartedAt = performance.now();
+    const result = state.faceDetector.detectForVideo(els.camera, now);
+    const detectionCost = performance.now() - detectionStartedAt;
+    state.faceSlowSamples = detectionCost > 34 ? state.faceSlowSamples + 1 : Math.max(0, state.faceSlowSamples - 1);
+    if (state.faceSlowSamples >= 5) {
+      state.faceRuntimeSuppressed = true;
+      state.faceAnchor = null;
+      showFeedback("ลดเอฟเฟกต์หมวกอัตโนมัติ เพื่อให้เกมลื่นขึ้น", "#ffffff", 2600);
+      return;
+    }
+    const detection = (result.detections || []).reduce((largest, item) => {
+      const box = item.boundingBox;
+      if (!box) return largest;
+      if (!largest) return item;
+      return box.width * box.height > largest.boundingBox.width * largest.boundingBox.height ? item : largest;
+    }, null);
+    if (!detection?.boundingBox) {
+      state.faceMisses += 1;
+      if (state.faceMisses > 4) state.faceAnchor = null;
+      return;
+    }
+    state.faceMisses = 0;
+    const box = detection.boundingBox;
+    const videoWidth = els.camera.videoWidth || 640;
+    const videoHeight = els.camera.videoHeight || 360;
+    const coverScale = Math.max(rect.width / videoWidth, rect.height / videoHeight);
+    const cropX = (videoWidth * coverScale - rect.width) * 0.5;
+    const cropY = (videoHeight * coverScale - rect.height) * 0.5;
+    const target = {
+      x: rect.width - ((box.originX + box.width * 0.5) * coverScale - cropX),
+      y: box.originY * coverScale - cropY,
+      width: box.width * coverScale,
+      height: box.height * coverScale
+    };
+    if (!state.faceAnchor) state.faceAnchor = target;
+    else {
+      const smoothing = 0.28;
+      for (const key of ["x", "y", "width", "height"]) {
+        state.faceAnchor[key] += (target[key] - state.faceAnchor[key]) * smoothing;
+      }
+    }
+  } catch {
+    state.faceReady = false;
+    state.faceAnchor = null;
+  }
+}
+
+function drawFaceFilter(now) {
+  const face = state.faceAnchor;
+  if (!face || !state.faceEffectsEnabled || state.faceRuntimeSuppressed || !mushroomHatImage.complete || !mushroomHatImage.naturalWidth) return;
+  const width = Math.max(110, face.width * 1.72);
+  const height = width * (mushroomHatImage.naturalHeight / mushroomHatImage.naturalWidth);
+  const bob = Math.sin(now / 330) * Math.min(4, face.height * 0.025);
+  const x = face.x - width * 0.5;
+  const y = face.y - height * 0.7 + bob;
+  ctx.save();
+  ctx.shadowColor = state.combo >= 8 ? "rgba(255, 220, 80, 0.9)" : "rgba(255, 118, 92, 0.58)";
+  ctx.shadowBlur = state.combo >= 8 ? 22 : 12;
+  if (state.combo >= 8) ctx.filter = "sepia(0.28) saturate(1.45) brightness(1.08)";
+  ctx.drawImage(mushroomHatImage, x, y, width, height);
+  ctx.restore();
+  if (state.combo >= 8) {
+    ctx.save();
+    ctx.fillStyle = "#ffe26a";
+    for (let index = 0; index < 3; index += 1) {
+      const angle = now / 600 + index * Math.PI * 2 / 3;
+      drawStar(ctx, face.x + Math.cos(angle) * width * 0.45, y + height * 0.3 + Math.sin(angle) * height * 0.18, 6);
+    }
+    ctx.restore();
+  }
 }
 
 function drawCameraGuide(rect) {
@@ -1146,6 +1305,7 @@ function updateHandPointer(now, rect) {
   const pinchReleases = state.pinchDistance > 0.58;
   if (!state.pinchDown && pinchStarts) {
     state.pinchDown = true;
+    pinchSporeBurst((state.pointer.x + state.thumb.x) * 0.5, (state.pointer.y + state.thumb.y) * 0.5);
     requestCatch();
   } else if (state.pinchDown && pinchReleases) {
     state.pinchDown = false;
@@ -1615,6 +1775,23 @@ function burst(x, y, colorA, colorB, shape = "circle") {
   }
 }
 
+function pinchSporeBurst(x, y) {
+  const colors = ["#fff4a3", "#ff9ec4", "#7ee7ff", "#a7f47b"];
+  for (let index = 0; index < 9; index += 1) {
+    const angle = Math.PI * 2 * index / 9;
+    state.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * (45 + Math.random() * 55),
+      vy: Math.sin(angle) * (45 + Math.random() * 55),
+      r: 3 + Math.random() * 4,
+      color: colors[index % colors.length],
+      shape: index % 3 === 0 ? "star" : "circle",
+      life: 0.48
+    });
+  }
+}
+
 function megaBurst(x, y, particleCount = 72) {
   particleCount = Math.min(particleCount, 48);
   const colors = ["#ffe55f", "#ff6f91", "#70e0ff", "#9cf06c", "#c787ff", "#ffffff"];
@@ -1707,6 +1884,7 @@ function drawPointer() {
   if (!state.pointer.active || state.mode === "menu") {
     els.cursor.hidden = true;
     els.thumbCursor.hidden = true;
+    els.pinchBeam.hidden = true;
     return;
   }
   els.cursor.hidden = false;
@@ -1715,6 +1893,15 @@ function drawPointer() {
   els.thumbCursor.hidden = !state.thumb.active;
   els.thumbCursor.classList.toggle("is-pinching", state.pinchDown);
   els.thumbCursor.style.transform = `translate(${state.thumb.x}px, ${state.thumb.y}px)`;
+  const showBeam = state.pointer.source === "finger" && state.thumb.active;
+  els.pinchBeam.hidden = !showBeam;
+  if (showBeam) {
+    const dx = state.thumb.x - state.pointer.x;
+    const dy = state.thumb.y - state.pointer.y;
+    els.pinchBeam.classList.toggle("is-pinching", state.pinchDown);
+    els.pinchBeam.style.width = `${Math.hypot(dx, dy)}px`;
+    els.pinchBeam.style.transform = `translate(${state.pointer.x}px, ${state.pointer.y}px) rotate(${Math.atan2(dy, dx)}rad)`;
+  }
 }
 
 function updateHud() {

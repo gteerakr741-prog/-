@@ -296,10 +296,11 @@ body.is-game-expanded .game-shell {
   opacity: 0;
   transition: opacity 240ms ease;
   background: #13303b;
+  filter: brightness(1.08) contrast(1.05) saturate(1.04);
 }
 
 .camera.is-live {
-  opacity: 0.84;
+  opacity: 0.96;
 }
 
 .game-canvas {
@@ -857,6 +858,65 @@ body.is-game-expanded .game-shell {
   color: #ffffff;
 }
 
+.effect-toggle {
+  min-height: 54px;
+  margin: 0 0 18px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px solid rgba(156, 92, 28, 0.26);
+  border-radius: 8px;
+  background: #fff8db;
+  color: #5b3515;
+  font-size: 20px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.effect-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.effect-toggle-track {
+  position: relative;
+  width: 54px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 15px;
+  background: #9a927f;
+  box-shadow: inset 0 2px 4px rgba(49, 32, 18, 0.28);
+  transition: background-color 160ms ease;
+}
+
+.effect-toggle-track i {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(56, 33, 13, 0.32);
+  transition: transform 160ms ease;
+}
+
+.effect-toggle input:checked + .effect-toggle-track {
+  background: #69bd3c;
+}
+
+.effect-toggle input:checked + .effect-toggle-track i {
+  transform: translateX(24px);
+}
+
+.effect-toggle:focus-within {
+  outline: 3px solid rgba(255, 195, 58, 0.7);
+  outline-offset: 2px;
+}
+
 .dialog button {
   min-height: 54px;
   border-radius: 8px;
@@ -1198,20 +1258,21 @@ body.is-game-expanded .game-shell {
   width: 34px;
   height: 34px;
   margin: -17px 0 0 -17px;
-  border: 5px solid #fff5b8;
+  border: 4px solid #fff8c7;
   border-radius: 999px;
   pointer-events: none;
-  box-shadow: 0 0 16px #ffe76a, 0 0 32px rgba(80, 221, 143, 0.72);
+  box-shadow: 0 0 5px #ffffff, 0 0 17px #ffe36d, 0 0 34px rgba(255, 172, 57, 0.78);
+  transition: width 90ms ease, height 90ms ease, margin 90ms ease, background-color 90ms ease;
 }
 
 .finger-cursor {
-  background: #ffcc4d;
+  background: #ffbd3d;
 }
 
 .thumb-cursor {
-  background: #75d7ff;
-  border-color: #e7fbff;
-  box-shadow: 0 0 16px #75d7ff, 0 0 32px rgba(90, 196, 255, 0.72);
+  background: #72d9ff;
+  border-color: #effcff;
+  box-shadow: 0 0 5px #ffffff, 0 0 17px #75d7ff, 0 0 34px rgba(73, 166, 255, 0.78);
 }
 
 .finger-cursor.is-pinching,
@@ -1219,6 +1280,30 @@ body.is-game-expanded .game-shell {
   border-color: #d9ff91;
   background: #80df5c;
   box-shadow: 0 0 22px #d9ff91, 0 0 48px rgba(90, 220, 86, 0.82);
+  width: 42px;
+  height: 42px;
+  margin: -21px 0 0 -21px;
+}
+
+.pinch-beam {
+  position: absolute;
+  z-index: 9;
+  left: 0;
+  top: 0;
+  height: 4px;
+  border-radius: 2px;
+  transform-origin: left center;
+  pointer-events: none;
+  background: rgba(255, 244, 164, 0.78);
+  box-shadow: 0 0 7px #ffffff, 0 0 15px #ffd85a;
+  opacity: 0.72;
+}
+
+.pinch-beam.is-pinching {
+  height: 6px;
+  background: #bfff71;
+  box-shadow: 0 0 9px #ffffff, 0 0 23px #79eb59;
+  opacity: 1;
 }
 
 .feedback,
