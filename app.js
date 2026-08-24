@@ -1220,6 +1220,28 @@ function createEntityId() {
   return `creature-${Date.now()}-${entitySequence}`;
 }
 
+function createSpawnPosition(rect, size, startInPlayfield, side) {
+  let fallback = { x: rect.width / 2, y: rect.height / 2 };
+  for (let attempt = 0; attempt < 14; attempt += 1) {
+    const candidate = startInPlayfield
+      ? {
+          x: rect.width * (0.1 + Math.random() * 0.8),
+          y: rect.height * (0.28 + Math.random() * 0.56)
+        }
+      : {
+          x: side === 1 ? rect.width + size : side === 3 ? -size : Math.random() * rect.width,
+          y: side === 2 ? rect.height + size : side === 0 ? -size : rect.height * (0.2 + Math.random() * 0.68)
+        };
+    fallback = candidate;
+    const clear = state.creatures.every((creature) => {
+      const minimumDistance = (size + creature.size) * 0.7;
+      return Math.hypot(candidate.x - creature.x, candidate.y - creature.y) >= minimumDistance;
+    });
+    if (clear) return candidate;
+  }
+  return fallback;
+}
+
 function spawnCreature(rect, startInPlayfield = false) {
   const correctChance = state.level === 1 ? 0.78 : state.level === 2 ? 0.68 : 0.58;
   const pool = Math.random() < correctChance ? correctWords : wrongWords;
@@ -1230,11 +1252,12 @@ function spawnCreature(rect, startInPlayfield = false) {
   const elapsed = Math.max(0, state.roundDuration - state.timeLeft);
   const compactMotionScale = Math.max(0.72, Math.min(1, rect.height / 500));
   const speed = (62 + Math.random() * 72 + state.level * 24 + elapsed * 1.3) * viewportScale * compactMotionScale;
+  const spawn = createSpawnPosition(rect, size, startInPlayfield, side);
   const creature = {
     ...item,
     id: createEntityId(),
-    x: startInPlayfield ? rect.width * (0.1 + Math.random() * 0.8) : side === 1 ? rect.width + size : side === 3 ? -size : Math.random() * rect.width,
-    y: startInPlayfield ? rect.height * (0.28 + Math.random() * 0.56) : side === 2 ? rect.height + size : side === 0 ? -size : rect.height * (0.2 + Math.random() * 0.68),
+    x: spawn.x,
+    y: spawn.y,
     vx: 0,
     vy: 0,
     size,
@@ -1258,12 +1281,13 @@ function spawnGoldenCreature(rect) {
   const item = correctWords[Math.floor(Math.random() * correctWords.length)];
   const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
   const size = Math.max(146 * viewportScale, Math.min(rect.width, rect.height) * 0.23);
+  const spawn = createSpawnPosition(rect, size, true, 0);
   const creature = {
     ...item,
     id: createEntityId(),
     golden: true,
-    x: rect.width * (0.32 + Math.random() * 0.36),
-    y: rect.height * (0.34 + Math.random() * 0.24),
+    x: spawn.x,
+    y: spawn.y,
     vx: (Math.random() - 0.5) * 44 * viewportScale,
     vy: (Math.random() - 0.5) * 24 * viewportScale,
     size,
@@ -1279,7 +1303,7 @@ function spawnGoldenCreature(rect) {
 }
 
 function updateCreatures(delta, rect) {
-  state.creatures = state.creatures.filter((creature) => {
+  for (const creature of state.creatures) {
     creature.life += delta;
     creature.x += creature.vx * delta;
     creature.y += creature.vy * delta + Math.sin(creature.life * 4 + creature.phase) * 0.85;
@@ -1287,9 +1311,50 @@ function updateCreatures(delta, rect) {
       emitCloudTrail(creature);
       creature.lastTrail = creature.life;
     }
+  }
+  separateCreatures(delta, rect);
+  state.creatures = state.creatures.filter((creature) => {
     const pad = creature.size * 1.4;
     return creature.x > -pad && creature.x < rect.width + pad && creature.y > -pad && creature.y < rect.height + pad;
   });
+}
+
+function separateCreatures(delta, rect) {
+  const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
+  for (let firstIndex = 0; firstIndex < state.creatures.length; firstIndex += 1) {
+    const first = state.creatures[firstIndex];
+    for (let secondIndex = firstIndex + 1; secondIndex < state.creatures.length; secondIndex += 1) {
+      const second = state.creatures[secondIndex];
+      let dx = second.x - first.x;
+      let dy = second.y - first.y;
+      let distance = Math.hypot(dx, dy);
+      const minimumDistance = (first.size + second.size) * 0.68;
+      if (distance >= minimumDistance) continue;
+      if (distance < 0.001) {
+        const angle = (first.phase + second.phase) * 0.5;
+        dx = Math.cos(angle);
+        dy = Math.sin(angle);
+        distance = 1;
+      }
+      const normalX = dx / distance;
+      const normalY = dy / distance;
+      const overlap = minimumDistance - distance;
+      const correction = Math.min(overlap * 0.5, overlap * delta * 8 + 0.35 * viewportScale);
+      first.x -= normalX * correction;
+      first.y -= normalY * correction;
+      second.x += normalX * correction;
+      second.y += normalY * correction;
+
+      const closingSpeed = (first.vx - second.vx) * normalX + (first.vy - second.vy) * normalY;
+      if (closingSpeed > 0) {
+        const impulse = Math.min(closingSpeed * 0.38, 58 * viewportScale);
+        first.vx -= normalX * impulse * 0.5;
+        first.vy -= normalY * impulse * 0.5;
+        second.vx += normalX * impulse * 0.5;
+        second.vy += normalY * impulse * 0.5;
+      }
+    }
+  }
 }
 
 function emitCloudTrail(creature) {
@@ -1465,18 +1530,26 @@ function drawContainedCharacter(image, size, bobOffset) {
 function checkHits() {
   if (!state.pointer.active || !state.catchRequested) return;
   state.catchRequested = false;
-  for (let i = state.creatures.length - 1; i >= 0; i -= 1) {
-    const creature = state.creatures[i];
+  const catchX = state.pointer.source === "finger" && state.thumb.active
+    ? (state.pointer.x + state.thumb.x) * 0.5
+    : state.pointer.x;
+  const catchY = state.pointer.source === "finger" && state.thumb.active
+    ? (state.pointer.y + state.thumb.y) * 0.5
+    : state.pointer.y;
+  let closestHit = null;
+  for (let index = 0; index < state.creatures.length; index += 1) {
+    const creature = state.creatures[index];
     const cy = creature.y + Math.sin(creature.life * 5 + creature.phase) * creature.wobble;
     // Cover the full cloud platform so a pinch on the word or character still catches it.
     const radius = creature.size * 0.78;
-    const distance = Math.hypot(state.pointer.x - creature.x, state.pointer.y - cy);
-    if (distance <= radius) {
-      state.creatures.splice(i, 1);
-      handleCatch(creature);
-      break;
+    const distance = Math.hypot(catchX - creature.x, catchY - cy);
+    if (distance <= radius && (!closestHit || distance < closestHit.distance)) {
+      closestHit = { creature, distance, index };
     }
   }
+  if (!closestHit) return;
+  state.creatures.splice(closestHit.index, 1);
+  handleCatch(closestHit.creature);
 }
 
 function handleCatch(creature) {
