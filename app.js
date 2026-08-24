@@ -28,6 +28,8 @@ const els = {
   entryWindowBtn: document.querySelector("#entryWindowBtn"),
   openChromeBtn: document.querySelector("#openChromeBtn"),
   entryMessage: document.querySelector("#entryMessage"),
+  orientationGate: document.querySelector("#orientationGate"),
+  orientationBackBtn: document.querySelector("#orientationBackBtn"),
   startBtn: document.querySelector("#startBtn"),
   howBtn: document.querySelector("#howBtn"),
   cameraBtn: document.querySelector("#cameraBtn"),
@@ -73,21 +75,24 @@ const isAndroid = /Android/i.test(navigator.userAgent);
 const isIPad = /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const isIPhone = /iPhone|iPod/i.test(navigator.userAgent);
 const isIOS = isIPad || isIPhone;
+const isChromeBrowser = isIOS
+  ? /CriOS/i.test(navigator.userAgent)
+  : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 document.body.classList.toggle("is-ios-device", isIOS);
-if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS);
+if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS) || isChromeBrowser;
 const menuImage = new Image();
 const sceneImages = [
-  "assets/พื้นหลัง(1).png",
-  "assets/พื้นหลัง (2).png",
-  "assets/พื้นหลัง (3).png",
-  "assets/พื้นหลัง (4).png"
+  "assets/พื้นหลัง-1.webp",
+  "assets/พื้นหลัง-2.webp",
+  "assets/พื้นหลัง-3.webp",
+  "assets/พื้นหลัง-4.webp"
 ].map((source) => {
   const image = new Image();
   image.src = source;
   return image;
 });
-menuImage.src = "assets/mushroom-menu.png";
+menuImage.src = "assets/mushroom-menu.webp";
 const characterImages = Array.from({ length: 20 }, (_, index) => {
   const image = new Image();
   image.src = `assets/characters/mushroom_character_${String(index + 1).padStart(2, "0")}.png`;
@@ -110,6 +115,7 @@ const wordAudio = new Map(correctWords.map((item, index) => {
   return [item.word, audio];
 }));
 const wordSpriteCache = new Map();
+let entitySequence = 0;
 document.fonts?.ready.then(() => wordSpriteCache.clear());
 
 const wrongWords = [
@@ -143,6 +149,8 @@ const state = {
   sceneTransition: null,
   pendingSceneSpawn: false,
   pendingGoldenCreature: false,
+  finalLevelAnnounced: false,
+  pendingLandscapeAction: null,
   creatures: [],
   particles: [],
   pointer: { x: 0, y: 0, active: false, source: "mouse" },
@@ -206,6 +214,7 @@ els.fullscreenBtn.addEventListener("click", toggleFullscreen);
 els.entryFullscreenBtn.addEventListener("click", enterPreferredDisplay);
 els.entryWindowBtn.addEventListener("click", enterWindowedDisplay);
 els.openChromeBtn?.addEventListener("click", openInChrome);
+els.orientationBackBtn?.addEventListener("click", cancelOrientationGate);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
@@ -243,6 +252,28 @@ function syncViewportSize() {
 function handleViewportChange() {
   syncViewportSize();
   window.requestAnimationFrame(resizeCanvas);
+  if (state.pendingLandscapeAction && !isPortraitMobile()) {
+    const action = state.pendingLandscapeAction;
+    state.pendingLandscapeAction = null;
+    els.orientationGate.hidden = true;
+    window.setTimeout(action, 120);
+  }
+}
+
+function isPortraitMobile() {
+  return (isAndroid || isIOS) && window.innerHeight > window.innerWidth;
+}
+
+function showOrientationGate(action) {
+  state.pendingLandscapeAction = action;
+  els.orientationGate.hidden = false;
+}
+
+function cancelOrientationGate() {
+  state.pendingLandscapeAction = null;
+  els.orientationGate.hidden = true;
+  setPseudoFullscreen(false);
+  showMenu();
 }
 
 function closeEntryGate() {
@@ -265,6 +296,10 @@ async function enterPreferredDisplay() {
   playButton();
   setPseudoFullscreen(true);
   closeEntryGate();
+  if (isPortraitMobile()) {
+    showOrientationGate(enterPreferredDisplay);
+    return;
+  }
   const isStandalone = Boolean(navigator.standalone || window.matchMedia("(display-mode: standalone)").matches || window.matchMedia("(display-mode: fullscreen)").matches);
   if (isStandalone) {
     return;
@@ -407,11 +442,13 @@ async function bootGame() {
     ...characterImages.map(waitForImage),
     preloadImage("assets/loading/loading-background.webp"),
     preloadImage("assets/loading/loading-progress-frame.webp"),
+    preloadImage("assets/menu/menu-background.webp"),
     preloadImage("assets/menu/menu-dancers-poster.webp"),
     preloadImage("assets/menu/start-game-button.png"),
     preloadImage("assets/menu/camera-test-button.png"),
     preloadImage("assets/menu/setting-button.png"),
-    preloadImage("assets/menu/guide-button.png")
+    preloadImage("assets/menu/guide-button.png"),
+    preloadImage("assets/result-screen.webp")
   ];
   const mediaTasks = [els.menuMusic, els.startSound, els.finalCountdownSound, els.bonusSound, els.bigBonusSound, els.wrongAnswerSound, els.loseSound, els.endSound]
     .map(waitForMediaMetadata);
@@ -443,6 +480,10 @@ function deactivateMenuVideo() {
 
 async function startGame() {
   if (state.mode === "preparing") return;
+  if (isPortraitMobile()) {
+    showOrientationGate(startGame);
+    return;
+  }
   unlockGameAudio();
   stopMenuMusic();
   deactivateMenuVideo();
@@ -490,6 +531,7 @@ async function startGame() {
   state.sceneTransition = null;
   state.pendingSceneSpawn = false;
   state.pendingGoldenCreature = false;
+  state.finalLevelAnnounced = false;
   state.pointer.active = true;
   state.catchRequested = false;
   state.pinchDown = false;
@@ -505,6 +547,8 @@ function showMenu() {
   state.running = false;
   state.paused = false;
   state.resuming = false;
+  state.pendingLandscapeAction = null;
+  els.orientationGate.hidden = true;
   els.resumeBtn.disabled = false;
   els.pauseBtn.hidden = true;
   els.cameraTestControls.hidden = true;
@@ -827,9 +871,9 @@ async function loadHandTracking(forcedDelegate = null, silent = false) {
   state.handTrackingLoading = true;
   state.handTrackingPromise = (async () => {
     try {
-      const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18");
+      const vision = await import("./assets/vendor/mediapipe/vision_bundle.mjs");
       const resolver = await vision.FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
+        "./assets/vendor/mediapipe/wasm"
       );
       const delegates = forcedDelegate ? [forcedDelegate] : isAndroid ? ["CPU", "GPU"] : ["GPU", "CPU"];
       let lastError = null;
@@ -837,8 +881,7 @@ async function loadHandTracking(forcedDelegate = null, silent = false) {
         try {
           state.handLandmarker = await vision.HandLandmarker.createFromOptions(resolver, {
             baseOptions: {
-              modelAssetPath:
-                "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+              modelAssetPath: "./assets/vendor/mediapipe/models/hand_landmarker.task",
               delegate
             },
             runningMode: "VIDEO",
@@ -1154,6 +1197,12 @@ function spawnDelay() {
   return 2350 - state.level * 220 - progress * 500;
 }
 
+function createEntityId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  entitySequence += 1;
+  return `creature-${Date.now()}-${entitySequence}`;
+}
+
 function spawnCreature(rect, startInPlayfield = false) {
   const correctChance = state.level === 1 ? 0.78 : state.level === 2 ? 0.68 : 0.58;
   const pool = Math.random() < correctChance ? correctWords : wrongWords;
@@ -1166,7 +1215,7 @@ function spawnCreature(rect, startInPlayfield = false) {
   const speed = (62 + Math.random() * 72 + state.level * 24 + elapsed * 1.3) * viewportScale * compactMotionScale;
   const creature = {
     ...item,
-    id: crypto.randomUUID(),
+    id: createEntityId(),
     x: startInPlayfield ? rect.width * (0.1 + Math.random() * 0.8) : side === 1 ? rect.width + size : side === 3 ? -size : Math.random() * rect.width,
     y: startInPlayfield ? rect.height * (0.28 + Math.random() * 0.56) : side === 2 ? rect.height + size : side === 0 ? -size : rect.height * (0.2 + Math.random() * 0.68),
     vx: 0,
@@ -1194,7 +1243,7 @@ function spawnGoldenCreature(rect) {
   const size = Math.max(146 * viewportScale, Math.min(rect.width, rect.height) * 0.23);
   const creature = {
     ...item,
-    id: crypto.randomUUID(),
+    id: createEntityId(),
     golden: true,
     x: rect.width * (0.32 + Math.random() * 0.36),
     y: rect.height * (0.34 + Math.random() * 0.24),
@@ -1597,9 +1646,12 @@ function advanceLevel() {
       spawnGoldenCreature(els.stage.getBoundingClientRect());
       state.pendingGoldenCreature = false;
     }
-    showCombo("ด่านสุดท้าย! เก็บคะแนนต่อจนหมดเวลา");
-    showFeedback("ด่าน 4 เล่นต่อได้จนกว่าเวลาจะหมด", "#ffffff");
-    playStart();
+    if (!state.finalLevelAnnounced) {
+      state.finalLevelAnnounced = true;
+      showCombo("ด่านสุดท้าย! เก็บคะแนนต่อจนหมดเวลา");
+      showFeedback("ด่าน 4 เล่นต่อได้จนกว่าเวลาจะหมด", "#ffffff");
+      playStart();
+    }
     return;
   }
   const fromLevel = state.level;
