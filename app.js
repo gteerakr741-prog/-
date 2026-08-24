@@ -485,9 +485,9 @@ async function startGame() {
     showOrientationGate(startGame);
     return;
   }
+  state.mode = "preparing";
   stopMenuMusic();
   deactivateMenuVideo();
-  state.mode = "preparing";
   state.running = false;
   els.entryGate.hidden = true;
   showScreen(els.loading);
@@ -714,7 +714,7 @@ function suspendForBackground() {
 
 function startBackgroundMusic() {
   if (!state.sound) return;
-  els.menuMusic.pause();
+  stopMenuMusic();
   els.bgMusic.volume = 0.14;
   els.bgMusic.play().catch(() => {
     // Browsers require a player gesture before background audio can begin.
@@ -725,7 +725,14 @@ function startMenuMusic() {
   if (!state.sound || state.mode !== "menu") return;
   els.menuMusic.volume = 0.68;
   els.menuMusic.muted = false;
-  els.menuMusic.play().catch(() => {});
+  els.menuMusic.play()
+    .then(() => {
+      if (!state.sound || state.mode !== "menu") {
+        els.menuMusic.pause();
+        els.menuMusic.currentTime = 0;
+      }
+    })
+    .catch(() => {});
 }
 
 function unlockMenuMusic() {
