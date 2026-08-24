@@ -11,7 +11,13 @@ const els = {
   loseSound: document.querySelector("#loseSound"),
   endSound: document.querySelector("#endSound"),
   canvas: document.querySelector("#gameCanvas"),
-  menuDanceCanvas: document.querySelector("#menuDanceCanvas"),
+  arFrame: document.querySelector("#arFrame"),
+  loading: document.querySelector("#loadingScreen"),
+  loadingStatus: document.querySelector("#loadingStatus"),
+  loadingFill: document.querySelector("#loadingFill"),
+  loadingPercent: document.querySelector("#loadingPercent"),
+  loadingBar: document.querySelector(".loading-bar-shell"),
+  menuDanceVideo: document.querySelector("#menuDanceVideo"),
   hud: document.querySelector("#hud"),
   menu: document.querySelector("#menuScreen"),
   info: document.querySelector("#infoScreen"),
@@ -56,18 +62,17 @@ const els = {
   correctCount: document.querySelector("#correctCount"),
   wrongCount: document.querySelector("#wrongCount"),
   maxCombo: document.querySelector("#maxCombo"),
-  highScore: document.querySelector("#highScore"),
+  finalCoins: document.querySelector("#finalCoins"),
   learnedWords: document.querySelector("#learnedWords"),
   resultTitle: document.querySelector("#resultTitle")
 };
 
 const ctx = els.canvas.getContext("2d");
-const menuDanceCtx = els.menuDanceCanvas.getContext("2d");
-const isDesktopChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent) && window.matchMedia("(pointer: fine)").matches;
 const isAndroid = /Android/i.test(navigator.userAgent);
 const isIPad = /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const isIPhone = /iPhone|iPod/i.test(navigator.userAgent);
 const isIOS = isIPad || isIPhone;
+const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 document.body.classList.toggle("is-ios-device", isIOS);
 const menuImage = new Image();
 const cloudSheet = new Image();
@@ -91,11 +96,6 @@ const characterImages = Array.from({ length: 20 }, (_, index) => {
 const wordCloudImage = new Image();
 wordCloudImage.src = "assets/game-word-cloud.png";
 const wordCloudImages = [wordCloudImage];
-const danceSheets = Array.from({ length: 8 }, (_, index) => {
-  const image = new Image();
-  image.src = `assets/menu/dance/dance_character_${String(index + 1).padStart(2, "0")}_normalized.png`;
-  return image;
-});
 cloudSheet.addEventListener("load", () => {
   cloudCanvas = cloudSheet;
 });
@@ -135,7 +135,7 @@ const wrongWords = [
 ].map(([word, col, row]) => ({ word, col, row, correct: false }));
 
 const state = {
-  mode: "menu",
+  mode: "loading",
   running: false,
   paused: false,
   resuming: false,
@@ -164,19 +164,22 @@ const state = {
   catchRequested: false,
   pinchDown: false,
   pinchDistance: Infinity,
-  sound: true,
+  sound: !startsMuted,
   cameraReady: false,
   cameraRequestId: 0,
   handReady: false,
   handLandmarker: null,
   lastVideoTime: -1,
   lastHandDetectionAt: 0,
-  handDetectionInterval: isAndroid ? 66 : 50,
+  handDetectionInterval: isAndroid || isIOS ? 66 : 50,
   handTrackingDelegate: null,
   handTrackingLoading: false,
   handTrackingRecoveries: 0,
   lastRenderAt: 0,
-  renderInterval: isDesktopChrome ? 1000 / 30 : 0,
+  renderInterval: 1000 / 30,
+  stageRect: null,
+  inactiveCanvasCleared: false,
+  handTrackingPromise: null,
   pseudoFullscreen: false,
   audio: null,
   audioBuffers: new Map(),
@@ -203,12 +206,13 @@ window.addEventListener("keydown", unlockMenuMusic, true);
 window.addEventListener("pointerdown", unlockGameAudio, true);
 window.addEventListener("touchstart", unlockGameAudio, { capture: true, passive: true });
 window.addEventListener("keydown", unlockGameAudio, true);
+window.addEventListener("keydown", handleResultKeyboard);
 
 els.startBtn.addEventListener("click", startGame);
 els.replayBtn.addEventListener("click", startGame);
 els.homeBtn.addEventListener("click", showMenu);
 els.howBtn.addEventListener("click", () => showScreen(els.info));
-els.closeInfoBtn.addEventListener("click", () => showScreen(els.menu));
+els.closeInfoBtn.addEventListener("click", showMenu);
 els.cameraBtn.addEventListener("click", testCamera);
 els.soundBtn?.addEventListener("click", toggleSound);
 els.fullscreenBtn.addEventListener("click", toggleFullscreen);
@@ -217,11 +221,11 @@ els.entryWindowBtn.addEventListener("click", enterWindowedDisplay);
 document.addEventListener("fullscreenchange", updateFullscreenButton);
 document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
 els.settingBtn.addEventListener("click", openTimeSettings);
-els.closeTimeBtn.addEventListener("click", () => showScreen(els.menu));
+els.closeTimeBtn.addEventListener("click", showMenu);
 els.timeOptions.forEach((button) => button.addEventListener("click", () => {
   state.roundDuration = Number(button.dataset.duration);
   updateTimeOptions();
-  showScreen(els.menu);
+  showMenu();
 }));
 els.pauseBtn.addEventListener("pointerdown", togglePauseFromInput);
 els.pauseBtn.addEventListener("click", (event) => event.preventDefault());
@@ -231,10 +235,9 @@ els.resumeBtn.addEventListener("click", resumeGame);
 els.pauseMenuBtn.addEventListener("click", showMenu);
 
 requestAnimationFrame(loop);
-els.menuMusic.load();
 updateSoundButton();
 updateFullscreenButton();
-startMenuMusic();
+void bootGame();
 
 function syncViewportSize() {
   const viewport = window.visualViewport;
@@ -319,6 +322,30 @@ function setPseudoFullscreen(enabled) {
 
 function resizeCanvas() {
   const rect = els.stage.getBoundingClientRect();
+  const previousRect = state.stageRect;
+  if (previousRect?.width && previousRect?.height && state.running) {
+    const scaleX = rect.width / previousRect.width;
+    const scaleY = rect.height / previousRect.height;
+    const sizeScale = Math.min(scaleX, scaleY);
+    if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
+      state.creatures.forEach((creature) => {
+        creature.x *= scaleX;
+        creature.y *= scaleY;
+        creature.size *= sizeScale;
+        creature.vx *= scaleX;
+        creature.vy *= scaleY;
+        creature.wobble *= sizeScale;
+      });
+      state.particles.forEach((particle) => {
+        particle.x *= scaleX;
+        particle.y *= scaleY;
+        particle.r *= sizeScale;
+      });
+    }
+  }
+  state.stageRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  const uiScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
+  els.stage.style.setProperty("--ui-scale", uiScale.toFixed(3));
   const nativeDpr = window.devicePixelRatio || 1;
   const pixelBudget = 1920 * 1080;
   const budgetDpr = Math.sqrt(pixelBudget / Math.max(1, rect.width * rect.height));
@@ -328,33 +355,123 @@ function resizeCanvas() {
   els.canvas.style.width = `${rect.width}px`;
   els.canvas.style.height = `${rect.height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  els.menuDanceCanvas.width = Math.round(rect.width * dpr);
-  els.menuDanceCanvas.height = Math.round(rect.height * dpr);
-  menuDanceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-function drawMenuDancers(now, rect) {
-  menuDanceCtx.clearRect(0, 0, rect.width, rect.height);
-  const frame = Math.floor(now / 300) % 8;
-  const positions = [0.085, 0.22, 0.335, 0.45, 0.565, 0.68, 0.79, 0.905];
-  const heightRatios = [0.347, 0.444, 0.316, 0.331, 0.379, 0.333, 0.342, 0.291];
-  const baseline = rect.height * 0.805;
-  danceSheets.forEach((sheet, index) => {
-    if (!sheet.complete || !sheet.naturalWidth) return;
-    const frameWidth = sheet.naturalWidth / 4;
-    const frameHeight = sheet.naturalHeight / 2;
-    const sourceX = (frame % 4) * frameWidth;
-    const sourceY = Math.floor(frame / 4) * frameHeight;
-    const height = rect.height * heightRatios[index];
-    const width = height;
-    const x = rect.width * positions[index] - width / 2;
-    const y = baseline - height;
-    menuDanceCtx.drawImage(sheet, sourceX, sourceY, frameWidth, frameHeight, x, y, width, height);
+function waitForImage(image) {
+  if (image.complete && image.naturalWidth) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(resolve, 9000);
+    const finish = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    image.addEventListener("load", finish, { once: true });
+    image.addEventListener("error", finish, { once: true });
   });
 }
 
+function preloadImage(source) {
+  const image = new Image();
+  image.decoding = "async";
+  image.src = source;
+  return waitForImage(image);
+}
+
+function waitForMediaMetadata(media) {
+  if (media.readyState >= 1) return Promise.resolve();
+  media.load();
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(resolve, 9000);
+    const finish = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    media.addEventListener("loadedmetadata", finish, { once: true });
+    media.addEventListener("error", finish, { once: true });
+  });
+}
+
+function setLoadingProgress(value, status) {
+  const percent = Math.max(0, Math.min(100, Math.round(value)));
+  if (status) els.loadingStatus.textContent = status;
+  els.loadingFill.style.width = `${percent}%`;
+  els.loadingPercent.textContent = `${percent}%`;
+  els.loadingPercent.style.left = `${18.5 + (73 * percent) / 100}%`;
+  els.loadingBar.setAttribute("aria-valuenow", String(percent));
+  els.loading.classList.toggle("is-complete", percent === 100);
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+async function bootGame() {
+  state.mode = "loading";
+  els.entryGate.hidden = true;
+  showScreen(els.loading);
+  setLoadingProgress(2, "กำลังเตรียมอาณาจักรเห็ด...");
+
+  const imageTasks = [
+    waitForImage(menuImage),
+    waitForImage(cloudSheet),
+    waitForImage(wordCloudImage),
+    ...sceneImages.map(waitForImage),
+    ...characterImages.map(waitForImage),
+    preloadImage("assets/loading/loading-background.webp"),
+    preloadImage("assets/loading/loading-progress-frame.webp"),
+    preloadImage("assets/menu/menu-dancers-poster.webp"),
+    preloadImage("assets/menu/start-game-button.png"),
+    preloadImage("assets/menu/camera-test-button.png"),
+    preloadImage("assets/menu/setting-button.png"),
+    preloadImage("assets/menu/guide-button.png")
+  ];
+  const mediaTasks = [els.menuMusic, els.startSound, els.finalCountdownSound, els.bonusSound, els.bigBonusSound, els.wrongAnswerSound, els.loseSound, els.endSound]
+    .map(waitForMediaMetadata);
+  const tasks = [document.fonts?.ready || Promise.resolve(), waitForMediaMetadata(els.menuDanceVideo), ...imageTasks, ...mediaTasks];
+  let completed = 0;
+  await Promise.allSettled(tasks.map((task) => Promise.resolve(task).finally(() => {
+    completed += 1;
+    setLoadingProgress(5 + (completed / tasks.length) * 72, "กำลังเตรียมภาพ ตัวละคร และเสียง...");
+  })));
+
+  setLoadingProgress(82, "กำลังเตรียมระบบตรวจจับนิ้ว...");
+  await Promise.race([loadHandTracking(null, true), sleep(12000)]);
+  setLoadingProgress(100, "พร้อมผจญภัยแล้ว!");
+  await sleep(420);
+  showMenu();
+  els.entryGate.hidden = false;
+}
+
+function activateMenuVideo() {
+  els.menuDanceVideo.defaultPlaybackRate = 1.5;
+  els.menuDanceVideo.playbackRate = 1.5;
+  els.menuDanceVideo.currentTime ||= 0;
+  els.menuDanceVideo.play().catch(() => {});
+}
+
+function deactivateMenuVideo() {
+  els.menuDanceVideo.pause();
+}
+
 async function startGame() {
+  if (state.mode === "preparing") return;
+  unlockGameAudio();
+  stopMenuMusic();
+  deactivateMenuVideo();
+  state.mode = "preparing";
+  state.running = false;
+  els.entryGate.hidden = true;
+  showScreen(els.loading);
+  setLoadingProgress(12, "กำลังเปิดกล้อง...");
+  const cameraAvailable = await ensureCamera();
+  setLoadingProgress(68, cameraAvailable ? "กำลังปรับระบบตรวจจับนิ้ว..." : "กำลังเตรียมโหมดสัมผัส...");
+  if (!state.handReady) await loadHandTracking(null, true);
+  setLoadingProgress(100, cameraAvailable ? "ตรวจจับนิ้วพร้อมแล้ว!" : "พร้อมเล่นด้วยการแตะหน้าจอ!");
+  await sleep(280);
+
   hideScreens();
+  els.canvas.hidden = false;
+  els.arFrame.hidden = false;
   els.hud.hidden = false;
   state.mode = "playing";
   state.running = true;
@@ -394,7 +511,6 @@ async function startGame() {
   showFeedback("ด่าน 1: จีบนิ้วหรือคลิกจับคำแม่ ก กา", "#ffffff");
   playAsset(els.startSound, 0.72);
   startBackgroundMusic();
-  await ensureCamera();
 }
 
 function showMenu() {
@@ -407,11 +523,14 @@ function showMenu() {
   els.pauseOverlay.hidden = true;
   stopBackgroundMusic();
   state.mode = "menu";
+  els.canvas.hidden = true;
+  els.arFrame.hidden = true;
   els.hud.hidden = true;
   state.creatures = [];
   state.particles = [];
   stopCameraStream();
   showScreen(els.menu);
+  activateMenuVideo();
   startMenuMusic();
 }
 
@@ -428,6 +547,9 @@ function updateTimeOptions() {
 
 async function testCamera() {
   hideScreens();
+  deactivateMenuVideo();
+  els.canvas.hidden = false;
+  els.arFrame.hidden = false;
   els.hud.hidden = true;
   state.mode = "camera";
   state.running = false;
@@ -682,46 +804,52 @@ async function ensureCamera() {
   }
 }
 
-async function loadHandTracking(forcedDelegate = null) {
-  if (state.handTrackingLoading || state.handReady) return;
+async function loadHandTracking(forcedDelegate = null, silent = false) {
+  if (state.handReady) return true;
+  if (state.handTrackingLoading) return state.handTrackingPromise;
   state.handTrackingLoading = true;
-  try {
-    const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18");
-    const resolver = await vision.FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
-    );
-    const delegates = forcedDelegate ? [forcedDelegate] : isAndroid ? ["CPU", "GPU"] : ["GPU", "CPU"];
-    let lastError = null;
-    for (const delegate of delegates) {
-      try {
-        state.handLandmarker = await vision.HandLandmarker.createFromOptions(resolver, {
-          baseOptions: {
-            modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-            delegate
-          },
-          runningMode: "VIDEO",
-          numHands: 1,
-          minHandDetectionConfidence: isAndroid ? 0.4 : 0.5,
-          minHandPresenceConfidence: isAndroid ? 0.4 : 0.5,
-          minTrackingConfidence: isAndroid ? 0.4 : 0.5
-        });
-        state.handTrackingDelegate = delegate;
-        state.handReady = true;
-        state.lastVideoTime = -1;
-        showFeedback("ตรวจจับนิ้วพร้อมแล้ว", "#ffffff");
-        break;
-      } catch (error) {
-        lastError = error;
+  state.handTrackingPromise = (async () => {
+    try {
+      const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18");
+      const resolver = await vision.FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
+      );
+      const delegates = forcedDelegate ? [forcedDelegate] : isAndroid ? ["CPU", "GPU"] : ["GPU", "CPU"];
+      let lastError = null;
+      for (const delegate of delegates) {
+        try {
+          state.handLandmarker = await vision.HandLandmarker.createFromOptions(resolver, {
+            baseOptions: {
+              modelAssetPath:
+                "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+              delegate
+            },
+            runningMode: "VIDEO",
+            numHands: 1,
+            minHandDetectionConfidence: isAndroid ? 0.4 : 0.5,
+            minHandPresenceConfidence: isAndroid ? 0.4 : 0.5,
+            minTrackingConfidence: isAndroid ? 0.4 : 0.5
+          });
+          state.handTrackingDelegate = delegate;
+          state.handReady = true;
+          state.lastVideoTime = -1;
+          if (!silent) showFeedback("ตรวจจับนิ้วพร้อมแล้ว", "#ffffff");
+          return true;
+        } catch (error) {
+          lastError = error;
+        }
       }
+      throw lastError || new Error("Hand tracking unavailable");
+    } catch {
+      state.handReady = false;
+      if (!silent) showFeedback("ตรวจนิ้วไม่พร้อม ใช้เมาส์/ทัชแทนได้", "#ffffff");
+      return false;
+    } finally {
+      state.handTrackingLoading = false;
+      state.handTrackingPromise = null;
     }
-    if (!state.handReady) throw lastError || new Error("Hand tracking unavailable");
-  } catch {
-    state.handReady = false;
-    showFeedback("ตรวจนิ้วไม่พร้อม ใช้เมาส์/ทัชแทนได้", "#ffffff");
-  } finally {
-    state.handTrackingLoading = false;
-  }
+  })();
+  return state.handTrackingPromise;
 }
 
 function recoverHandTracking() {
@@ -749,22 +877,32 @@ function loop(now) {
     return;
   }
   state.lastRenderAt = now;
-  const rect = els.stage.getBoundingClientRect();
+  if (document.hidden) {
+    requestAnimationFrame(loop);
+    return;
+  }
+  const runtimeActive = state.mode === "playing" || state.mode === "camera";
+  const rect = state.stageRect || els.stage.getBoundingClientRect();
+  if (!runtimeActive) {
+    if (!state.inactiveCanvasCleared) {
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      state.inactiveCanvasCleared = true;
+    }
+    state.pointer.active = false;
+    state.thumb.active = false;
+    drawPointer();
+    requestAnimationFrame(loop);
+    return;
+  }
+  state.inactiveCanvasCleared = false;
   ctx.clearRect(0, 0, rect.width, rect.height);
 
   if (state.mode === "playing") drawSceneBackdrop(rect);
-  else if (!state.cameraReady || state.mode === "menu") drawMenuBackdrop(rect);
+  else if (!state.cameraReady) drawMenuBackdrop(rect);
   if (state.mode === "playing") drawCloudLayer(rect, now);
-  if (state.mode === "menu") {
-    try {
-      drawMenuDancers(now, rect);
-    } catch {
-      menuDanceCtx.clearRect(0, 0, rect.width, rect.height);
-    }
-  } else menuDanceCtx.clearRect(0, 0, rect.width, rect.height);
   drawAmbient(rect, now);
 
-  const needsHandTracking = state.mode === "playing" || state.mode === "camera" || state.mode === "result";
+  const needsHandTracking = state.mode === "camera" || (state.mode === "playing" && !state.paused);
   if (needsHandTracking && state.cameraReady && state.handReady && state.handLandmarker) {
     try {
       updateHandPointer(now, rect);
@@ -803,9 +941,11 @@ function loop(now) {
     drawCameraGuide(rect);
   }
 
-  drawCloudTrails();
-  drawCreatures();
-  drawParticles();
+  if (state.mode === "playing") {
+    drawCloudTrails();
+    drawCreatures();
+    drawParticles();
+  }
   drawPointer();
   requestAnimationFrame(loop);
 }
@@ -862,15 +1002,16 @@ function drawCloudLayer(rect, now) {
   if (!cloudCanvas) return;
   const sceneOpacity = state.cameraReady ? 0.24 : 0.56;
   const sceneScale = state.level === 2 ? 0.95 : state.level === 3 ? 0.82 : 1;
+  const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
   ctx.save();
   ctx.globalAlpha = sceneOpacity;
   for (let index = 0; index < 4; index += 1) {
     const [sx, sy, sw, sh] = cloudTiles[(state.level + index * 2) % cloudTiles.length];
-    const width = (150 + index * 48) * sceneScale;
+    const width = (150 + index * 48) * sceneScale * viewportScale;
     const height = width * (sh / sw);
     const speed = 0.008 + index * 0.002;
     const x = ((now * speed + index * 290) % (rect.width + width * 2)) - width;
-    const y = 96 + ((index * 127 + state.level * 41) % Math.max(140, rect.height * 0.46));
+    const y = rect.height * 0.14 + ((index * 127 * viewportScale + state.level * 41) % Math.max(rect.height * 0.3, rect.height * 0.46));
     ctx.drawImage(cloudCanvas, sx, sy, sw, sh, x, y, width, height);
   }
   ctx.restore();
@@ -928,8 +1069,6 @@ function updateHandPointer(now, rect) {
   if (!tip || !thumb) {
     state.pinchDown = false;
     state.thumb.active = false;
-    els.replayBtn.classList.remove("is-pointed");
-    els.homeBtn.classList.remove("is-pointed");
     return;
   }
   state.pointer.x = (1 - tip.x) * rect.width;
@@ -944,8 +1083,6 @@ function updateHandPointer(now, rect) {
   const pinchDistance = Math.hypot(tip.x - thumb.x, tip.y - thumb.y);
   const palmSize = wrist && middlePalm ? Math.hypot(wrist.x - middlePalm.x, wrist.y - middlePalm.y) : 0;
   state.pinchDistance = palmSize > 0.04 ? pinchDistance / palmSize : pinchDistance / 0.15;
-  updateResultActionFocus();
-
   // Scale the pinch against the player's palm so phones work at different distances.
   const pinchStarts = state.pinchDistance < 0.38;
   const pinchReleases = state.pinchDistance > 0.58;
@@ -973,18 +1110,6 @@ function getClosestHand(hands = []) {
   return closestHand;
 }
 
-function updateResultActionFocus() {
-  if (state.mode !== "result" || state.pointer.source !== "finger") return;
-  const stageRect = els.stage.getBoundingClientRect();
-  const pointerX = stageRect.left + state.pointer.x;
-  const pointerY = stageRect.top + state.pointer.y;
-  for (const button of [els.replayBtn, els.homeBtn]) {
-    const rect = button.getBoundingClientRect();
-    const isPointed = pointerX >= rect.left && pointerX <= rect.right && pointerY >= rect.top && pointerY <= rect.bottom;
-    button.classList.toggle("is-pointed", isPointed);
-  }
-}
-
 function updatePointer(event) {
   const rect = els.stage.getBoundingClientRect();
   state.pointer.x = event.clientX - rect.left;
@@ -1008,9 +1133,22 @@ function updateTouch(event) {
 
 function requestCatch() {
   if (state.running && !state.paused) state.catchRequested = true;
-  else if (state.mode === "result" && state.pointer.source === "finger") {
-    [els.replayBtn, els.homeBtn].find((button) => button.classList.contains("is-pointed"))?.click();
+}
+
+function handleResultKeyboard(event) {
+  if (state.mode !== "result") return;
+  const buttons = [els.replayBtn, els.homeBtn];
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    const current = Math.max(0, buttons.indexOf(document.activeElement));
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    buttons[(current + direction + buttons.length) % buttons.length].focus({ preventScroll: true });
+    return;
   }
+  if (event.key !== "Enter" && event.code !== "Space") return;
+  event.preventDefault();
+  const activeButton = buttons.includes(document.activeElement) ? document.activeElement : els.replayBtn;
+  activeButton.click();
 }
 
 function spawnDelay() {
@@ -1023,26 +1161,27 @@ function spawnCreature(rect, startInPlayfield = false) {
   const pool = Math.random() < correctChance ? correctWords : wrongWords;
   const item = pool[Math.floor(Math.random() * pool.length)];
   const side = Math.floor(Math.random() * 4);
-  const size = Math.max(118, Math.min(rect.width, rect.height) * (0.16 + Math.random() * 0.045));
-  const speed = 62 + Math.random() * 72 + state.level * 24 + (60 - state.timeLeft) * 1.3;
+  const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
+  const size = Math.max(118 * viewportScale, Math.min(rect.width, rect.height) * (0.16 + Math.random() * 0.045));
+  const speed = (62 + Math.random() * 72 + state.level * 24 + (60 - state.timeLeft) * 1.3) * viewportScale;
   const creature = {
     ...item,
     id: crypto.randomUUID(),
-    x: startInPlayfield ? 120 + Math.random() * Math.max(1, rect.width - 240) : side === 1 ? rect.width + size : side === 3 ? -size : Math.random() * rect.width,
-    y: startInPlayfield ? 145 + Math.random() * Math.max(1, rect.height - 290) : side === 2 ? rect.height + size : side === 0 ? -size : 92 + Math.random() * (rect.height - 210),
+    x: startInPlayfield ? rect.width * (0.1 + Math.random() * 0.8) : side === 1 ? rect.width + size : side === 3 ? -size : Math.random() * rect.width,
+    y: startInPlayfield ? rect.height * (0.28 + Math.random() * 0.56) : side === 2 ? rect.height + size : side === 0 ? -size : rect.height * (0.2 + Math.random() * 0.68),
     vx: 0,
     vy: 0,
     size,
     speed,
     phase: Math.random() * Math.PI * 2,
-    wobble: 16 + Math.random() * 26,
+    wobble: (16 + Math.random() * 26) * viewportScale,
     characterIndex: Math.floor(Math.random() * characterImages.length),
     cloudIndex: Math.floor(Math.random() * wordCloudImages.length),
     lastTrail: 0,
     life: 0
   };
-  const targetX = 80 + Math.random() * (rect.width - 160);
-  const targetY = 120 + Math.random() * (rect.height - 240);
+  const targetX = rect.width * (0.08 + Math.random() * 0.84);
+  const targetY = rect.height * (0.22 + Math.random() * 0.66);
   const angle = Math.atan2(targetY - creature.y, targetX - creature.x);
   creature.vx = Math.cos(angle) * speed;
   creature.vy = Math.sin(angle) * speed;
@@ -1051,18 +1190,19 @@ function spawnCreature(rect, startInPlayfield = false) {
 
 function spawnGoldenCreature(rect) {
   const item = correctWords[Math.floor(Math.random() * correctWords.length)];
-  const size = Math.max(146, Math.min(rect.width, rect.height) * 0.23);
+  const viewportScale = Math.max(0.44, Math.min(1, rect.width / 960, rect.height / 540));
+  const size = Math.max(146 * viewportScale, Math.min(rect.width, rect.height) * 0.23);
   const creature = {
     ...item,
     id: crypto.randomUUID(),
     golden: true,
     x: rect.width * (0.32 + Math.random() * 0.36),
     y: rect.height * (0.34 + Math.random() * 0.24),
-    vx: (Math.random() - 0.5) * 44,
-    vy: (Math.random() - 0.5) * 24,
+    vx: (Math.random() - 0.5) * 44 * viewportScale,
+    vy: (Math.random() - 0.5) * 24 * viewportScale,
     size,
     phase: Math.random() * Math.PI * 2,
-    wobble: 20,
+    wobble: 20 * viewportScale,
     characterIndex: Math.floor(Math.random() * characterImages.length),
     cloudIndex: Math.floor(Math.random() * wordCloudImages.length),
     lastTrail: 0,
@@ -1166,7 +1306,7 @@ function drawCreature(creature) {
 
   ctx.fillStyle = creature.golden ? "#754000" : "#16120f";
   ctx.textAlign = "center";
-  const wordFontSize = Math.max(27, size * 0.28);
+  const wordFontSize = Math.max(14, size * 0.28);
   ctx.font = `700 ${wordFontSize}px 'Mali', 'Leelawadee UI', sans-serif`;
   drawVisuallyCenteredText(ctx, creature.word, wordCenterX, wordCenterY, size * 1.12, wordFontSize);
   ctx.restore();
@@ -1486,33 +1626,38 @@ function endGame(completed = false) {
   els.finalCountdownSound.pause();
   els.finalCountdownSound.currentTime = 0;
   state.mode = "result";
+  state.pointer.active = false;
+  state.thumb.active = false;
+  state.pinchDown = false;
+  els.canvas.hidden = true;
+  els.arFrame.hidden = true;
+  stopCameraStream();
   els.hud.hidden = true;
   showCombo("");
   showFeedback("");
   const total = state.correct + state.wrong;
   const accuracy = total ? Math.round((state.correct / total) * 100) : 0;
-  const oldHigh = Number.parseInt(localStorage.getItem("mushroomHighScore") || "0", 10);
-  const high = Math.max(oldHigh, state.score);
-  localStorage.setItem("mushroomHighScore", String(high));
   els.finalScore.textContent = state.score;
   els.accuracy.textContent = `${accuracy}%`;
   els.correctCount.textContent = state.correct;
   els.wrongCount.textContent = state.wrong;
   els.maxCombo.textContent = state.maxCombo;
-  els.highScore.textContent = high;
+  els.finalCoins.textContent = state.coins;
   els.learnedWords.textContent = [...state.caughtWords].join("  ") || "ยังไม่มีคำที่เก็บได้";
   els.resultTitle.textContent = completed ? "พิชิตแม่ ก กา ครบ 4 ด่าน!" : "จบรอบแล้ว!";
   showScreen(els.result);
+  window.setTimeout(() => els.replayBtn.focus({ preventScroll: true }), 760);
   playAsset(els.endSound, 0.78);
 }
 
 function showScreen(screen) {
   hideScreens();
+  if (screen !== els.menu) deactivateMenuVideo();
   screen.classList.add("is-active");
 }
 
 function hideScreens() {
-  [els.menu, els.info, els.time, els.result].forEach((screen) => screen.classList.remove("is-active"));
+  [els.loading, els.menu, els.info, els.time, els.result].forEach((screen) => screen.classList.remove("is-active"));
 }
 
 function showFeedback(text, color = "#ffffff", duration = 1200) {
