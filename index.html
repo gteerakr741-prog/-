@@ -6,13 +6,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#75c56a" />
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="manifest.webmanifest?v=scene2" />
     <title>อาณาจักรเห็ด แม่ ก กา Hunter</title>
-    <link rel="stylesheet" href="styles.css?v=display1" />
+    <link rel="stylesheet" href="styles.css?v=scene49" />
   </head>
   <body>
     <main class="game-shell">
@@ -21,7 +18,7 @@
         <audio id="bgMusic" loop preload="metadata">
           <source src="assets/เสียงพื้นหลัง.mp3" type="audio/mpeg" />
         </audio>
-        <audio id="menuMusic" loop preload="auto" autoplay><source src="assets/menu-game.mp3" type="audio/mpeg" /></audio>
+        <audio id="menuMusic" loop preload="auto"><source src="assets/menu-game.mp3" type="audio/mpeg" /></audio>
         <audio id="startSound" preload="auto"><source src="assets/start-game.mp3" type="audio/mpeg" /></audio>
         <audio id="finalCountdownSound" preload="auto"><source src="assets/final-5-seconds.mp3" type="audio/mpeg" /></audio>
         <audio id="bonusSound" preload="auto"><source src="assets/game-bonus.mp3" type="audio/mpeg" /></audio>
@@ -31,7 +28,7 @@
         <audio id="endSound" preload="auto"><source src="assets/เสียงจบเกมส์.mp3" type="audio/mpeg" /></audio>
         <canvas id="gameCanvas" class="game-canvas"></canvas>
 
-        <div class="ar-frame" aria-hidden="true">
+        <div class="ar-frame" id="arFrame" aria-hidden="true" hidden>
           <span class="spore spore-a"></span>
           <span class="spore spore-b"></span>
           <span class="spore spore-c"></span>
@@ -40,13 +37,25 @@
         </div>
 
         <header class="hud" id="hud" hidden>
-          <div class="hud-pill progress"><span>ด่าน</span><strong id="level">1/4</strong><small>เหรียญเห็ด <b id="coins">0</b></small></div>
-          <div class="hud-pill score-pill"><span>คะแนน</span><strong id="score">0</strong><div class="combo-meter" aria-label="พลังคอมโบ"><i id="comboMeter"></i></div><small id="comboMeterLabel">พลังเมฆทอง 0/8</small></div>
-          <div class="hud-pill timer"><span>เวลา</span><strong id="timer">60</strong></div>
-          <div class="hud-pill hearts" id="hearts" aria-label="หัวใจ">♥ ♥ ♥</div>
+          <div class="hud-pill progress">
+            <img class="hud-stat-icon" src="assets/hud/symbols/stage-symbol.png" alt="" draggable="false" />
+            <div class="hud-stat-copy"><span>ด่าน</span><strong id="level">1/4</strong><small>เหรียญเห็ด <b id="coins">0</b></small></div>
+          </div>
+          <div class="hud-pill score-pill">
+            <img class="hud-stat-icon" src="assets/hud/symbols/score-symbol.png" alt="" draggable="false" />
+            <div class="hud-stat-copy"><span>คะแนน</span><strong id="score">0</strong><div class="combo-meter" aria-label="พลังคอมโบ" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="comboMeter"></i></div></div>
+          </div>
+          <div class="hud-pill timer">
+            <img class="hud-stat-icon" src="assets/hud/symbols/time-symbol.png" alt="" draggable="false" />
+            <div class="hud-stat-copy"><span>เวลา</span><strong id="timer">60</strong></div>
+          </div>
+          <div class="hud-pill hearts" aria-label="หัวใจ">
+            <img class="hud-stat-icon" src="assets/hud/symbols/energy-symbol.png" alt="" draggable="false" />
+            <strong id="hearts">♥ ♥ ♥</strong>
+          </div>
+          <button id="pauseBtn" class="pause-button" type="button" aria-label="พักเกม" hidden><img src="assets/hud/symbols/pause-button.png" alt="" draggable="false" /></button>
         </header>
 
-        <button id="pauseBtn" class="pause-button" type="button" aria-label="พักเกม" hidden><span aria-hidden="true"></span></button>
         <section class="camera-test-controls" id="cameraTestControls" hidden>
           <div class="camera-test-copy">
             <strong>ทดสอบกล้อง</strong>
@@ -68,23 +77,47 @@
 
         <div class="combo-pop" id="comboPop" aria-live="polite"></div>
         <div class="feedback" id="feedback" aria-live="polite"></div>
+        <div class="pinch-beam" id="pinchBeam" hidden></div>
         <div class="finger-cursor" id="fingerCursor" hidden></div>
         <div class="thumb-cursor" id="thumbCursor" hidden></div>
         <div class="red-flash" id="redFlash"></div>
 
-        <section class="entry-gate" id="entryGate" aria-label="เลือกโหมดหน้าจอ">
+        <section class="screen loading-screen is-active" id="loadingScreen" aria-label="กำลังโหลดเกม" aria-live="polite">
+          <div class="loading-content">
+            <img class="loading-character" src="assets/characters/mushroom_character_01.png" alt="" />
+            <strong id="loadingStatus">กำลังเตรียมอาณาจักรเห็ด...</strong>
+            <div class="loading-bar-shell" role="progressbar" aria-label="ความคืบหน้าการโหลด" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <img class="loading-bar-frame" src="assets/loading/loading-progress-frame.webp" alt="" />
+              <div class="loading-track"><div class="loading-fill" id="loadingFill"></div></div>
+              <output class="loading-percent" id="loadingPercent">0%</output>
+            </div>
+          </div>
+        </section>
+
+        <section class="entry-gate" id="entryGate" aria-label="เลือกโหมดหน้าจอ" hidden>
           <div class="entry-panel">
             <strong>เลือกโหมดหน้าจอ</strong>
             <div class="entry-actions">
               <button id="entryFullscreenBtn" class="entry-fullscreen" type="button">⛶ เต็มจอ</button>
               <button id="entryWindowBtn" class="entry-window" type="button">▣ เล่นในหน้านี้</button>
             </div>
+            <button id="openChromeBtn" class="entry-chrome" type="button">เปิดใน Chrome</button>
             <p id="entryMessage" hidden>เปิดลิงก์ใน Safari แล้วเลือก แชร์ → เพิ่มไปยังหน้าจอโฮม</p>
           </div>
         </section>
 
-        <section class="screen menu-screen is-active" id="menuScreen">
-          <canvas id="menuDanceCanvas" aria-hidden="true"></canvas>
+        <section class="orientation-gate" id="orientationGate" aria-label="กรุณาหมุนหน้าจอ" hidden>
+          <div class="orientation-panel">
+            <span class="orientation-phone" aria-hidden="true"></span>
+            <strong>หมุนโทรศัพท์เป็นแนวนอน</strong>
+            <button id="orientationBackBtn" type="button">กลับหน้าเมนู</button>
+          </div>
+        </section>
+
+        <section class="screen menu-screen" id="menuScreen">
+          <video id="menuDanceVideo" class="menu-dance-video" muted loop playsinline preload="metadata" poster="assets/menu/menu-dancers-poster.webp" aria-hidden="true">
+            <source src="assets/menu/menu-dancers.mp4" type="video/mp4" />
+          </video>
           <button id="fullscreenBtn" class="menu-fullscreen-button" type="button" aria-label="เต็มหน้าจอ" title="เต็มหน้าจอ">⛶</button>
           <button id="soundBtn" class="menu-sound-button" type="button" aria-label="ปิดเสียง" aria-pressed="false" title="ปิดเสียง">🔊</button>
           <div class="menu-button-tray" aria-label="เมนูเกม">
@@ -113,6 +146,14 @@
               <button type="button" data-duration="90">90 วินาที</button>
               <button type="button" data-duration="120">120 วินาที</button>
             </div>
+            <label class="word-voice-setting" for="wordVoiceToggle">
+              <span>
+                <strong>เสียงอ่านคำ</strong>
+                <small>อ่านเฉพาะคำที่จับได้</small>
+              </span>
+              <input id="wordVoiceToggle" type="checkbox" checked />
+              <i aria-hidden="true"></i>
+            </label>
             <button id="closeTimeBtn" type="button">กลับ</button>
           </article>
         </section>
@@ -130,7 +171,7 @@
               <div class="correct"><dt>ถูก</dt><dd id="correctCount">0</dd></div>
               <div class="wrong"><dt>ผิด</dt><dd id="wrongCount">0</dd></div>
               <div class="combo"><dt>คอมโบสูงสุด</dt><dd id="maxCombo">0</dd></div>
-              <div class="high-score"><dt>คะแนนสูงสุด</dt><dd id="highScore">0</dd></div>
+              <div class="final-coins"><dt>เหรียญเห็ด</dt><dd id="finalCoins">0</dd></div>
             </dl>
             <span id="learnedWords" class="sr-only">-</span>
             <button id="replayBtn" class="result-action replay-action" type="button" aria-label="เล่นอีกครั้ง">เล่นอีกครั้ง</button>
@@ -140,6 +181,6 @@
       </section>
     </main>
 
-    <script defer src="app.js?v=display2"></script>
+    <script defer src="app.js?v=scene51"></script>
   </body>
 </html>

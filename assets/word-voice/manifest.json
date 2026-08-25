@@ -1,0 +1,794 @@
+[
+  {
+    "index": 1,
+    "word": "กา",
+    "file": "voice-001.mp3",
+    "set": 1,
+    "start": 0.0,
+    "end": 1.16
+  },
+  {
+    "index": 2,
+    "word": "กบ",
+    "file": "voice-002.mp3",
+    "set": 1,
+    "start": 1.16,
+    "end": 1.97
+  },
+  {
+    "index": 3,
+    "word": "ตา",
+    "file": "voice-003.mp3",
+    "set": 1,
+    "start": 1.97,
+    "end": 3.266
+  },
+  {
+    "index": 4,
+    "word": "นก",
+    "file": "voice-004.mp3",
+    "set": 1,
+    "start": 3.266,
+    "end": 4.213
+  },
+  {
+    "index": 5,
+    "word": "ยา",
+    "file": "voice-005.mp3",
+    "set": 1,
+    "start": 4.213,
+    "end": 5.576
+  },
+  {
+    "index": 6,
+    "word": "มด",
+    "file": "voice-006.mp3",
+    "set": 1,
+    "start": 5.576,
+    "end": 6.522
+  },
+  {
+    "index": 7,
+    "word": "มา",
+    "file": "voice-007.mp3",
+    "set": 1,
+    "start": 6.522,
+    "end": 7.862
+  },
+  {
+    "index": 8,
+    "word": "รถ",
+    "file": "voice-008.mp3",
+    "set": 1,
+    "start": 7.862,
+    "end": 8.756
+  },
+  {
+    "index": 9,
+    "word": "นา",
+    "file": "voice-009.mp3",
+    "set": 1,
+    "start": 8.756,
+    "end": 10.058
+  },
+  {
+    "index": 10,
+    "word": "ดิน",
+    "file": "voice-010.mp3",
+    "set": 1,
+    "start": 10.058,
+    "end": 11.248
+  },
+  {
+    "index": 11,
+    "word": "ขา",
+    "file": "voice-011.mp3",
+    "set": 1,
+    "start": 11.248,
+    "end": 12.435
+  },
+  {
+    "index": 12,
+    "word": "บ้าน",
+    "file": "voice-012.mp3",
+    "set": 1,
+    "start": 12.435,
+    "end": 13.578
+  },
+  {
+    "index": 13,
+    "word": "ป้า",
+    "file": "voice-013.mp3",
+    "set": 1,
+    "start": 13.578,
+    "end": 14.741
+  },
+  {
+    "index": 14,
+    "word": "จาน",
+    "file": "voice-014.mp3",
+    "set": 1,
+    "start": 14.741,
+    "end": 15.938
+  },
+  {
+    "index": 15,
+    "word": "ลา",
+    "file": "voice-015.mp3",
+    "set": 1,
+    "start": 15.938,
+    "end": 17.182
+  },
+  {
+    "index": 16,
+    "word": "ขวด",
+    "file": "voice-016.mp3",
+    "set": 1,
+    "start": 17.182,
+    "end": 18.212
+  },
+  {
+    "index": 17,
+    "word": "ชา",
+    "file": "voice-017.mp3",
+    "set": 1,
+    "start": 18.212,
+    "end": 19.567
+  },
+  {
+    "index": 18,
+    "word": "ลูก",
+    "file": "voice-018.mp3",
+    "set": 1,
+    "start": 19.567,
+    "end": 20.647
+  },
+  {
+    "index": 19,
+    "word": "ปลา",
+    "file": "voice-019.mp3",
+    "set": 1,
+    "start": 20.647,
+    "end": 21.895
+  },
+  {
+    "index": 20,
+    "word": "เมฆ",
+    "file": "voice-020.mp3",
+    "set": 1,
+    "start": 21.895,
+    "end": 22.915
+  },
+  {
+    "index": 21,
+    "word": "ปู",
+    "file": "voice-021.mp3",
+    "set": 1,
+    "start": 22.915,
+    "end": 24.238
+  },
+  {
+    "index": 22,
+    "word": "ดาว",
+    "file": "voice-022.mp3",
+    "set": 1,
+    "start": 24.238,
+    "end": 25.517
+  },
+  {
+    "index": 23,
+    "word": "งู",
+    "file": "voice-023.mp3",
+    "set": 1,
+    "start": 25.517,
+    "end": 26.775
+  },
+  {
+    "index": 24,
+    "word": "ฝน",
+    "file": "voice-024.mp3",
+    "set": 1,
+    "start": 26.775,
+    "end": 27.952
+  },
+  {
+    "index": 25,
+    "word": "หู",
+    "file": "voice-025.mp3",
+    "set": 1,
+    "start": 27.952,
+    "end": 29.111
+  },
+  {
+    "index": 26,
+    "word": "ผัก",
+    "file": "voice-026.mp3",
+    "set": 1,
+    "start": 29.111,
+    "end": 29.985
+  },
+  {
+    "index": 27,
+    "word": "รู",
+    "file": "voice-027.mp3",
+    "set": 1,
+    "start": 29.985,
+    "end": 31.242
+  },
+  {
+    "index": 28,
+    "word": "ปาก",
+    "file": "voice-028.mp3",
+    "set": 1,
+    "start": 31.242,
+    "end": 32.268
+  },
+  {
+    "index": 29,
+    "word": "ดู",
+    "file": "voice-029.mp3",
+    "set": 1,
+    "start": 32.268,
+    "end": 33.507
+  },
+  {
+    "index": 30,
+    "word": "เลข",
+    "file": "voice-030.mp3",
+    "set": 1,
+    "start": 33.507,
+    "end": 34.605
+  },
+  {
+    "index": 31,
+    "word": "หมู",
+    "file": "voice-031.mp3",
+    "set": 1,
+    "start": 34.605,
+    "end": 35.777
+  },
+  {
+    "index": 32,
+    "word": "หอม",
+    "file": "voice-032.mp3",
+    "set": 1,
+    "start": 35.777,
+    "end": 36.983
+  },
+  {
+    "index": 33,
+    "word": "หนู",
+    "file": "voice-033.mp3",
+    "set": 1,
+    "start": 36.983,
+    "end": 38.2
+  },
+  {
+    "index": 34,
+    "word": "ข้าว",
+    "file": "voice-034.mp3",
+    "set": 2,
+    "start": 0.0,
+    "end": 1.24
+  },
+  {
+    "index": 35,
+    "word": "มือ",
+    "file": "voice-035.mp3",
+    "set": 2,
+    "start": 1.24,
+    "end": 2.736
+  },
+  {
+    "index": 36,
+    "word": "ดอก",
+    "file": "voice-036.mp3",
+    "set": 2,
+    "start": 2.736,
+    "end": 4.187
+  },
+  {
+    "index": 37,
+    "word": "ถือ",
+    "file": "voice-037.mp3",
+    "set": 2,
+    "start": 4.187,
+    "end": 5.734
+  },
+  {
+    "index": 38,
+    "word": "ต้น",
+    "file": "voice-038.mp3",
+    "set": 2,
+    "start": 5.734,
+    "end": 7.132
+  },
+  {
+    "index": 39,
+    "word": "ซื้อ",
+    "file": "voice-039.mp3",
+    "set": 2,
+    "start": 7.132,
+    "end": 8.681
+  },
+  {
+    "index": 40,
+    "word": "ลิง",
+    "file": "voice-040.mp3",
+    "set": 2,
+    "start": 8.681,
+    "end": 10.111
+  },
+  {
+    "index": 41,
+    "word": "เสื้อ",
+    "file": "voice-041.mp3",
+    "set": 2,
+    "start": 10.111,
+    "end": 11.656
+  },
+  {
+    "index": 42,
+    "word": "แมว",
+    "file": "voice-042.mp3",
+    "set": 2,
+    "start": 11.656,
+    "end": 13.131
+  },
+  {
+    "index": 43,
+    "word": "เสือ",
+    "file": "voice-043.mp3",
+    "set": 2,
+    "start": 13.131,
+    "end": 14.662
+  },
+  {
+    "index": 44,
+    "word": "คน",
+    "file": "voice-044.mp3",
+    "set": 2,
+    "start": 14.662,
+    "end": 16.058
+  },
+  {
+    "index": 45,
+    "word": "เรือ",
+    "file": "voice-045.mp3",
+    "set": 2,
+    "start": 16.058,
+    "end": 17.494
+  },
+  {
+    "index": 46,
+    "word": "ช้อน",
+    "file": "voice-046.mp3",
+    "set": 2,
+    "start": 17.494,
+    "end": 19.006
+  },
+  {
+    "index": 47,
+    "word": "เกลือ",
+    "file": "voice-047.mp3",
+    "set": 2,
+    "start": 19.006,
+    "end": 20.449
+  },
+  {
+    "index": 48,
+    "word": "ครก",
+    "file": "voice-048.mp3",
+    "set": 2,
+    "start": 20.449,
+    "end": 21.61
+  },
+  {
+    "index": 49,
+    "word": "เมีย",
+    "file": "voice-049.mp3",
+    "set": 2,
+    "start": 21.61,
+    "end": 23.094
+  },
+  {
+    "index": 50,
+    "word": "กาง",
+    "file": "voice-050.mp3",
+    "set": 2,
+    "start": 23.094,
+    "end": 24.46
+  },
+  {
+    "index": 51,
+    "word": "เสีย",
+    "file": "voice-051.mp3",
+    "set": 2,
+    "start": 24.46,
+    "end": 25.937
+  },
+  {
+    "index": 52,
+    "word": "กิ่ง",
+    "file": "voice-052.mp3",
+    "set": 2,
+    "start": 25.937,
+    "end": 27.261
+  },
+  {
+    "index": 53,
+    "word": "ไก่",
+    "file": "voice-053.mp3",
+    "set": 2,
+    "start": 27.261,
+    "end": 28.578
+  },
+  {
+    "index": 54,
+    "word": "กุ้ง",
+    "file": "voice-054.mp3",
+    "set": 2,
+    "start": 28.578,
+    "end": 29.948
+  },
+  {
+    "index": 55,
+    "word": "ไข่",
+    "file": "voice-055.mp3",
+    "set": 2,
+    "start": 29.948,
+    "end": 31.28
+  },
+  {
+    "index": 56,
+    "word": "ช้าง",
+    "file": "voice-056.mp3",
+    "set": 2,
+    "start": 31.28,
+    "end": 32.797
+  },
+  {
+    "index": 57,
+    "word": "ไป",
+    "file": "voice-057.mp3",
+    "set": 2,
+    "start": 32.797,
+    "end": 34.132
+  },
+  {
+    "index": 58,
+    "word": "หิน",
+    "file": "voice-058.mp3",
+    "set": 2,
+    "start": 34.132,
+    "end": 35.413
+  },
+  {
+    "index": 59,
+    "word": "ใจ",
+    "file": "voice-059.mp3",
+    "set": 2,
+    "start": 35.413,
+    "end": 36.802
+  },
+  {
+    "index": 60,
+    "word": "บิน",
+    "file": "voice-060.mp3",
+    "set": 2,
+    "start": 36.802,
+    "end": 38.08
+  },
+  {
+    "index": 61,
+    "word": "ใบ",
+    "file": "voice-061.mp3",
+    "set": 3,
+    "start": 0.0,
+    "end": 1.328
+  },
+  {
+    "index": 62,
+    "word": "กิน",
+    "file": "voice-062.mp3",
+    "set": 3,
+    "start": 1.328,
+    "end": 2.628
+  },
+  {
+    "index": 63,
+    "word": "ไฟ",
+    "file": "voice-063.mp3",
+    "set": 3,
+    "start": 2.628,
+    "end": 4.017
+  },
+  {
+    "index": 64,
+    "word": "จับ",
+    "file": "voice-064.mp3",
+    "set": 3,
+    "start": 4.017,
+    "end": 4.924
+  },
+  {
+    "index": 65,
+    "word": "ใส",
+    "file": "voice-065.mp3",
+    "set": 3,
+    "start": 4.924,
+    "end": 6.361
+  },
+  {
+    "index": 66,
+    "word": "ดาบ",
+    "file": "voice-066.mp3",
+    "set": 3,
+    "start": 6.361,
+    "end": 7.657
+  },
+  {
+    "index": 67,
+    "word": "ใหม่",
+    "file": "voice-067.mp3",
+    "set": 3,
+    "start": 7.657,
+    "end": 8.958
+  },
+  {
+    "index": 68,
+    "word": "ภาพ",
+    "file": "voice-068.mp3",
+    "set": 3,
+    "start": 8.958,
+    "end": 10.195
+  },
+  {
+    "index": 69,
+    "word": "ให้",
+    "file": "voice-069.mp3",
+    "set": 3,
+    "start": 10.195,
+    "end": 11.531
+  },
+  {
+    "index": 70,
+    "word": "จิต",
+    "file": "voice-070.mp3",
+    "set": 3,
+    "start": 11.531,
+    "end": 12.418
+  },
+  {
+    "index": 71,
+    "word": "ไม่",
+    "file": "voice-071.mp3",
+    "set": 3,
+    "start": 12.418,
+    "end": 13.842
+  },
+  {
+    "index": 72,
+    "word": "มิตร",
+    "file": "voice-072.mp3",
+    "set": 3,
+    "start": 13.842,
+    "end": 14.823
+  },
+  {
+    "index": 73,
+    "word": "โต",
+    "file": "voice-073.mp3",
+    "set": 3,
+    "start": 14.823,
+    "end": 16.319
+  },
+  {
+    "index": 74,
+    "word": "กอด",
+    "file": "voice-074.mp3",
+    "set": 3,
+    "start": 16.319,
+    "end": 17.597
+  },
+  {
+    "index": 75,
+    "word": "โต๊ะ",
+    "file": "voice-075.mp3",
+    "set": 3,
+    "start": 17.597,
+    "end": 18.679
+  },
+  {
+    "index": 76,
+    "word": "พัด",
+    "file": "voice-076.mp3",
+    "set": 3,
+    "start": 18.679,
+    "end": 19.846
+  },
+  {
+    "index": 77,
+    "word": "เก้าอี้",
+    "file": "voice-077.mp3",
+    "set": 3,
+    "start": 19.846,
+    "end": 21.406
+  },
+  {
+    "index": 78,
+    "word": "วัด",
+    "file": "voice-078.mp3",
+    "set": 3,
+    "start": 21.406,
+    "end": 22.407
+  },
+  {
+    "index": 79,
+    "word": "มะลิ",
+    "file": "voice-079.mp3",
+    "set": 3,
+    "start": 22.407,
+    "end": 23.674
+  },
+  {
+    "index": 80,
+    "word": "รัก",
+    "file": "voice-080.mp3",
+    "set": 3,
+    "start": 23.674,
+    "end": 24.733
+  },
+  {
+    "index": 81,
+    "word": "ทะเล",
+    "file": "voice-081.mp3",
+    "set": 3,
+    "start": 24.733,
+    "end": 26.268
+  },
+  {
+    "index": 82,
+    "word": "เล็ก",
+    "file": "voice-082.mp3",
+    "set": 3,
+    "start": 26.268,
+    "end": 27.255
+  },
+  {
+    "index": 83,
+    "word": "ภูเขา",
+    "file": "voice-083.mp3",
+    "set": 3,
+    "start": 27.255,
+    "end": 28.836
+  },
+  {
+    "index": 84,
+    "word": "เด็ก",
+    "file": "voice-084.mp3",
+    "set": 3,
+    "start": 28.836,
+    "end": 30.24
+  },
+  {
+    "index": 85,
+    "word": "นาฬิกา",
+    "file": "voice-085.mp3",
+    "set": 4,
+    "start": 0.0,
+    "end": 1.869
+  },
+  {
+    "index": 86,
+    "word": "นอน",
+    "file": "voice-086.mp3",
+    "set": 4,
+    "start": 1.869,
+    "end": 3.425
+  },
+  {
+    "index": 87,
+    "word": "กีฬา",
+    "file": "voice-087.mp3",
+    "set": 4,
+    "start": 3.425,
+    "end": 5.095
+  },
+  {
+    "index": 88,
+    "word": "บอล",
+    "file": "voice-088.mp3",
+    "set": 4,
+    "start": 5.095,
+    "end": 6.532
+  },
+  {
+    "index": 89,
+    "word": "มะเขือ",
+    "file": "voice-089.mp3",
+    "set": 4,
+    "start": 6.532,
+    "end": 8.138
+  },
+  {
+    "index": 90,
+    "word": "ลม",
+    "file": "voice-090.mp3",
+    "set": 4,
+    "start": 8.138,
+    "end": 9.504
+  },
+  {
+    "index": 91,
+    "word": "กะทิ",
+    "file": "voice-091.mp3",
+    "set": 4,
+    "start": 9.504,
+    "end": 10.809
+  },
+  {
+    "index": 92,
+    "word": "ส้ม",
+    "file": "voice-092.mp3",
+    "set": 4,
+    "start": 10.809,
+    "end": 12.21
+  },
+  {
+    "index": 93,
+    "word": "ตะปู",
+    "file": "voice-093.mp3",
+    "set": 4,
+    "start": 12.21,
+    "end": 13.761
+  },
+  {
+    "index": 94,
+    "word": "นม",
+    "file": "voice-094.mp3",
+    "set": 4,
+    "start": 13.761,
+    "end": 15.176
+  },
+  {
+    "index": 95,
+    "word": "ประตู",
+    "file": "voice-095.mp3",
+    "set": 4,
+    "start": 15.176,
+    "end": 16.784
+  },
+  {
+    "index": 96,
+    "word": "เกม",
+    "file": "voice-096.mp3",
+    "set": 4,
+    "start": 16.784,
+    "end": 18.172
+  },
+  {
+    "index": 97,
+    "word": "มะระ",
+    "file": "voice-097.mp3",
+    "set": 4,
+    "start": 18.172,
+    "end": 19.478
+  },
+  {
+    "index": 98,
+    "word": "งาม",
+    "file": "voice-098.mp3",
+    "set": 4,
+    "start": 19.478,
+    "end": 20.927
+  },
+  {
+    "index": 99,
+    "word": "สวย",
+    "file": "voice-099.mp3",
+    "set": 4,
+    "start": 20.927,
+    "end": 22.28
+  }
+]
