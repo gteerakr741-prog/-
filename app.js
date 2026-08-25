@@ -81,6 +81,8 @@ const isChromeBrowser = isIOS
   : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 const storedWordVoice = localStorage.getItem("mae-kokaa-word-voice");
+const GAME_MUSIC_LEVEL = isIOS ? 0.085 : 0.11;
+const MENU_MUSIC_LEVEL = 0.52;
 document.body.classList.toggle("is-ios-device", isIOS);
 if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS) || isChromeBrowser;
 const menuImage = new Image();
@@ -213,6 +215,7 @@ const state = {
   audio: null,
   audioBuffers: new Map(),
   audioBufferLoads: new Map(),
+  mediaAudioNodes: new Map(),
   effectAudioReady: null,
   spokenWordSource: null,
   spokenWordElement: null,
@@ -785,7 +788,7 @@ function startBackgroundMusic() {
   if (!state.sound) return;
   stopMenuMusic();
   els.bgMusic.muted = false;
-  els.bgMusic.volume = 0.14;
+  setMediaMusicLevel(els.bgMusic, GAME_MUSIC_LEVEL);
   els.bgMusic.play().catch(() => {
     // Browsers require a player gesture before background audio can begin.
   });
@@ -793,7 +796,7 @@ function startBackgroundMusic() {
 
 function startMenuMusic() {
   if (!state.sound || state.mode !== "menu") return;
-  els.menuMusic.volume = 0.68;
+  setMediaMusicLevel(els.menuMusic, MENU_MUSIC_LEVEL);
   els.menuMusic.muted = false;
   els.menuMusic.play()
     .then(() => {
@@ -819,6 +822,25 @@ function stopBackgroundMusic() {
 function stopMenuMusic() {
   els.menuMusic.pause();
   els.menuMusic.currentTime = 0;
+}
+
+function setMediaMusicLevel(audio, level) {
+  audio.volume = level;
+  const context = audioContext();
+  if (!context) return;
+  let nodes = state.mediaAudioNodes.get(audio);
+  if (!nodes) {
+    try {
+      const source = context.createMediaElementSource(audio);
+      const gain = context.createGain();
+      source.connect(gain).connect(context.destination);
+      nodes = { source, gain };
+      state.mediaAudioNodes.set(audio, nodes);
+    } catch {
+      return;
+    }
+  }
+  nodes.gain.gain.setTargetAtTime(level, context.currentTime, 0.025);
 }
 
 function playAsset(audio, volume = 0.45) {
@@ -888,6 +910,8 @@ function unlockGameAudio() {
     source.buffer = context.createBuffer(1, 1, 22050);
     source.connect(context.destination);
     source.start(0);
+    setMediaMusicLevel(els.bgMusic, GAME_MUSIC_LEVEL);
+    setMediaMusicLevel(els.menuMusic, MENU_MUSIC_LEVEL);
   }
   void prepareEffectAudio();
 }
@@ -2273,7 +2297,7 @@ function speakWord(word, onFinished) {
     const source = context.createBufferSource();
     const gain = context.createGain();
     source.buffer = buffer;
-    gain.gain.value = 0.92;
+    gain.gain.value = 1;
     source.connect(gain).connect(context.destination);
     source.onended = finish;
     state.spokenWordSource = source;
@@ -2284,7 +2308,7 @@ function speakWord(word, onFinished) {
   if (url) void preloadAudioAsset(audio);
   audio.pause();
   audio.currentTime = 0;
-  audio.volume = 0.92;
+  audio.volume = 1;
   audio.onended = finish;
   state.spokenWordElement = audio;
   audio.play().catch(finish);
