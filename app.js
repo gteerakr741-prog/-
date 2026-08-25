@@ -81,8 +81,9 @@ const isChromeBrowser = isIOS
   : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 const storedWordVoice = localStorage.getItem("mae-kokaa-word-voice");
-const GAME_MUSIC_LEVEL = isIOS ? 0.085 : isAndroid ? 0.13 : 0.2;
-const MENU_MUSIC_LEVEL = 0.52;
+const GAME_MUSIC_LEVEL = isIOS ? 0.085 : isAndroid ? 0.13 : 0.5;
+const MENU_MUSIC_LEVEL = 1;
+const EFFECT_LEVEL = 0.8;
 document.body.classList.toggle("is-ios-device", isIOS);
 if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS) || isChromeBrowser;
 const menuImage = new Image();
@@ -219,6 +220,8 @@ const state = {
   effectAudioReady: null,
   spokenWordSource: null,
   spokenWordElement: null,
+  spokenWordFinish: null,
+  spokenWordTimer: null,
   spokenWordToken: 0
 };
 
@@ -276,6 +279,17 @@ els.cameraBackBtn.addEventListener("click", showMenu);
 els.cameraStartBtn.addEventListener("click", startGame);
 els.resumeBtn.addEventListener("click", resumeGame);
 els.pauseMenuBtn.addEventListener("click", showMenu);
+
+if (new URLSearchParams(window.location.search).get("qa") === "audio") {
+  const audioQaButton = document.createElement("button");
+  audioQaButton.type = "button";
+  audioQaButton.textContent = "ทดสอบเอฟเฟกต์ผิด";
+  audioQaButton.style.cssText = "position:fixed;z-index:99999;left:50%;bottom:24px;transform:translateX(-50%);padding:14px 22px;font:700 20px sans-serif";
+  audioQaButton.addEventListener("click", () => {
+    playWrong(() => speakWord("ขวด", playWrongFeedback));
+  });
+  document.body.append(audioQaButton);
+}
 
 requestAnimationFrame(loop);
 updateSoundButton();
@@ -855,6 +869,7 @@ function setMediaMusicLevel(audio, level) {
 
 function playAsset(audio, volume = 0.45) {
   if (!state.sound) return;
+  const effectiveVolume = Math.min(volume, EFFECT_LEVEL);
   const context = audioContext();
   const url = audioAssetUrl(audio);
   const buffer = url ? state.audioBuffers.get(url) : null;
@@ -862,16 +877,23 @@ function playAsset(audio, volume = 0.45) {
     const source = context.createBufferSource();
     const gain = context.createGain();
     source.buffer = buffer;
-    gain.gain.value = volume;
+    gain.gain.value = effectiveVolume;
     source.connect(gain).connect(context.destination);
     source.start();
+    document.documentElement.dataset.lastAudioAsset = url;
+    document.documentElement.dataset.lastAudioAt = String(Date.now());
     return;
   }
   if (url) void preloadAudioAsset(audio);
   audio.pause();
   audio.currentTime = 0;
-  audio.volume = volume;
-  audio.play().catch(() => {});
+  audio.volume = effectiveVolume;
+  audio.play()
+    .then(() => {
+      document.documentElement.dataset.lastAudioAsset = url;
+      document.documentElement.dataset.lastAudioAt = String(Date.now());
+    })
+    .catch(() => {});
 }
 
 function audioAssetUrl(audio) {
@@ -920,7 +942,10 @@ function unlockGameAudio() {
     source.buffer = context.createBuffer(1, 1, 22050);
     source.connect(context.destination);
     source.start(0);
-    setMediaMusicLevel(els.bgMusic, 0);
+    const gameplayMusicLevel = state.mode === "playing" && state.running && !state.paused
+      ? GAME_MUSIC_LEVEL
+      : 0;
+    setMediaMusicLevel(els.bgMusic, gameplayMusicLevel);
     setMediaMusicLevel(els.menuMusic, state.mode === "menu" ? MENU_MUSIC_LEVEL : 0);
   }
   void prepareEffectAudio();
@@ -1888,7 +1913,7 @@ function handleCatch(creature) {
       showCombo("เมฆทองปรากฏ!", true);
     }
     playCorrect();
-    speakWord(creature.word);
+    window.setTimeout(() => speakWord(creature.word), 100);
     if (state.correctInLevel >= 6) advanceLevel();
   } else {
     state.combo = 0;
@@ -1898,14 +1923,17 @@ function handleCatch(creature) {
     flashRed();
     showFeedback(`ผิด! ${creature.word} มี ${creature.word.at(-1)} เป็นตัวสะกด`, "#ffffff");
     showCombo("");
+    const playWrongSequence = (onFinished) => {
+      playWrong(() => speakWord(creature.word, () => playWrongFeedback(onFinished)));
+    };
     if (state.hearts <= 0) {
       state.lossFeedbackPending = true;
-      speakWord(creature.word, () => playWrong(() => {
+      playWrongSequence(() => {
         state.lossFeedbackPending = false;
         if (state.running && state.hearts <= 0) endGame();
-      }));
+      });
     } else {
-      speakWord(creature.word, playWrong);
+      playWrongSequence();
     }
   }
 }
@@ -2127,7 +2155,7 @@ function endGame(completed = false) {
   showScreen(els.result);
   animateResultNumbers({ accuracy });
   window.setTimeout(() => els.replayBtn.focus({ preventScroll: true }), 760);
-  playAsset(els.endSound, 0.78);
+  playAsset(state.hearts <= 0 ? els.loseSound : els.endSound, 0.8);
 }
 
 function animateResultNumbers({ accuracy }) {
@@ -2255,19 +2283,30 @@ function playCorrect() {
 
 
 function playWrong(onFinished) {
-  const audio = wrongFeedbackAudio[Math.floor(Math.random() * wrongFeedbackAudio.length)] || els.wrongAnswerSound;
-  playAsset(audio, 1);
-  if (onFinished) {
-    const duration = Number.isFinite(audio.duration) ? audio.duration : 2.4;
-    window.setTimeout(onFinished, Math.max(900, duration * 1000 + 80));
-  }
+  const audio = els.wrongAnswerSound;
+  playAsset(audio, 0.8);
+  if (onFinished) window.setTimeout(onFinished, 100);
+}
+
+function playWrongFeedback(onFinished) {
+  const audio = wrongFeedbackAudio[Math.floor(Math.random() * wrongFeedbackAudio.length)];
+  playAsset(audio, 0.8);
+  if (!onFinished) return;
+  const url = audioAssetUrl(audio);
+  const bufferedDuration = url ? state.audioBuffers.get(url)?.duration : 0;
+  const duration = bufferedDuration || (Number.isFinite(audio.duration) ? audio.duration : 2.8);
+  window.setTimeout(onFinished, Math.max(900, duration * 1000 + 80));
 }
 
 function playButton() {
   tone(620, 0, 0.08, "triangle", 0.05);
 }
 
-function stopSpokenWord() {
+function stopSpokenWord(completePending = false) {
+  const pendingFinish = completePending ? state.spokenWordFinish : null;
+  state.spokenWordFinish = null;
+  window.clearTimeout(state.spokenWordTimer);
+  state.spokenWordTimer = null;
   state.spokenWordToken += 1;
   if (state.spokenWordSource) {
     state.spokenWordSource.onended = null;
@@ -2280,10 +2319,11 @@ function stopSpokenWord() {
     state.spokenWordElement.currentTime = 0;
     state.spokenWordElement = null;
   }
+  pendingFinish?.();
 }
 
 function speakWord(word, onFinished) {
-  stopSpokenWord();
+  stopSpokenWord(true);
   if (!state.wordVoice || !state.sound) {
     onFinished?.();
     return;
@@ -2297,13 +2337,19 @@ function speakWord(word, onFinished) {
   const token = state.spokenWordToken;
   const finish = () => {
     if (token !== state.spokenWordToken) return;
+    window.clearTimeout(state.spokenWordTimer);
+    state.spokenWordTimer = null;
     state.spokenWordSource = null;
     state.spokenWordElement = null;
+    state.spokenWordFinish = null;
     onFinished?.();
   };
+  state.spokenWordFinish = onFinished || null;
   const context = audioContext();
   const url = audioAssetUrl(audio);
   const buffer = url ? state.audioBuffers.get(url) : null;
+  const duration = buffer?.duration || (Number.isFinite(audio.duration) ? audio.duration : 1.8);
+  state.spokenWordTimer = window.setTimeout(finish, Math.max(650, duration * 1000 + 180));
   if (context && context.state === "running" && buffer) {
     const source = context.createBufferSource();
     const gain = context.createGain();
@@ -2313,6 +2359,8 @@ function speakWord(word, onFinished) {
     source.onended = finish;
     state.spokenWordSource = source;
     source.start();
+    document.documentElement.dataset.lastAudioAsset = url;
+    document.documentElement.dataset.lastAudioAt = String(Date.now());
     return;
   }
 
@@ -2322,7 +2370,12 @@ function speakWord(word, onFinished) {
   audio.volume = 1;
   audio.onended = finish;
   state.spokenWordElement = audio;
-  audio.play().catch(finish);
+  audio.play()
+    .then(() => {
+      document.documentElement.dataset.lastAudioAsset = url;
+      document.documentElement.dataset.lastAudioAt = String(Date.now());
+    })
+    .catch(finish);
 }
 
 function roundRect(context, x, y, width, height, radius) {
