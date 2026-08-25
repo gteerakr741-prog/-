@@ -81,7 +81,7 @@ const isChromeBrowser = isIOS
   : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 const storedWordVoice = localStorage.getItem("mae-kokaa-word-voice");
-const GAME_MUSIC_LEVEL = isIOS ? 0.085 : isAndroid ? 0.13 : 0.5;
+const GAME_MUSIC_LEVEL = 0.5;
 const MENU_MUSIC_LEVEL = 1;
 const EFFECT_LEVEL = 0.8;
 document.body.classList.toggle("is-ios-device", isIOS);
