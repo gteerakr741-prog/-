@@ -81,7 +81,7 @@ const isChromeBrowser = isIOS
   : isAndroid && /Chrome\//i.test(navigator.userAgent) && !/; wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
 const startsMuted = new URLSearchParams(window.location.search).get("sound") === "off";
 const storedWordVoice = localStorage.getItem("mae-kokaa-word-voice");
-const GAME_MUSIC_LEVEL = isIOS ? 0.085 : 0.11;
+const GAME_MUSIC_LEVEL = isIOS ? 0.085 : isAndroid ? 0.13 : 0.2;
 const MENU_MUSIC_LEVEL = 0.52;
 document.body.classList.toggle("is-ios-device", isIOS);
 if (els.openChromeBtn) els.openChromeBtn.hidden = !(isAndroid || isIOS) || isChromeBrowser;
@@ -545,6 +545,7 @@ async function startGame() {
     return;
   }
   state.mode = "preparing";
+  pauseBackgroundMusic();
   stopSpokenWord();
   stopMenuMusic();
   deactivateMenuVideo();
@@ -673,8 +674,12 @@ function toggleSound() {
   if (state.sound && state.mode === "menu") startMenuMusic();
   else if (state.sound && state.running) startBackgroundMusic();
   else if (!state.sound) {
-    els.bgMusic.pause();
+    pauseBackgroundMusic();
     els.menuMusic.pause();
+    [els.bgMusic, els.menuMusic].forEach((audio) => {
+      const nodes = state.mediaAudioNodes.get(audio);
+      if (nodes && state.audio) nodes.gain.gain.setValueAtTime(0, state.audio.currentTime);
+    });
   }
   playButton();
 }
@@ -738,7 +743,7 @@ function pauseGame() {
   if (!state.running || state.paused) return;
   state.paused = true;
   state.catchRequested = false;
-  els.bgMusic.pause();
+  pauseBackgroundMusic();
   els.pauseOverlay.hidden = false;
 }
 
@@ -780,12 +785,12 @@ function stopCameraStream() {
 function suspendForBackground() {
   if (state.running && !state.paused) pauseGame();
   els.menuMusic.pause();
-  els.bgMusic.pause();
+  pauseBackgroundMusic();
   stopCameraStream();
 }
 
 function startBackgroundMusic() {
-  if (!state.sound) return;
+  if (!state.sound || state.mode !== "playing" || !state.running || state.paused) return;
   stopMenuMusic();
   els.bgMusic.muted = false;
   setMediaMusicLevel(els.bgMusic, GAME_MUSIC_LEVEL);
@@ -814,9 +819,14 @@ function unlockMenuMusic() {
 }
 
 function stopBackgroundMusic() {
-  els.bgMusic.pause();
+  pauseBackgroundMusic();
   els.bgMusic.currentTime = 0;
   els.bgMusic.muted = true;
+}
+
+function pauseBackgroundMusic() {
+  els.bgMusic.pause();
+  setMediaMusicLevel(els.bgMusic, 0);
 }
 
 function stopMenuMusic() {
@@ -910,16 +920,17 @@ function unlockGameAudio() {
     source.buffer = context.createBuffer(1, 1, 22050);
     source.connect(context.destination);
     source.start(0);
-    setMediaMusicLevel(els.bgMusic, GAME_MUSIC_LEVEL);
-    setMediaMusicLevel(els.menuMusic, MENU_MUSIC_LEVEL);
+    setMediaMusicLevel(els.bgMusic, 0);
+    setMediaMusicLevel(els.menuMusic, state.mode === "menu" ? MENU_MUSIC_LEVEL : 0);
   }
   void prepareEffectAudio();
 }
 
 function primeBackgroundMusic() {
   if (!state.sound || !els.bgMusic.paused) return;
-  // iOS ignores programmatic volume changes, so muted must carry the silent unlock.
+  // Keep the primed track silent through loading; gameplay opens its gain later.
   els.bgMusic.muted = true;
+  setMediaMusicLevel(els.bgMusic, 0);
   els.bgMusic.play().catch(() => {});
 }
 
